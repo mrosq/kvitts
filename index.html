@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Kvitts</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #f7f4ef; --card: #ffffff; --ink: #1a1a1a; --muted: #888;
+    --accent: #c84b2f; --accent2: #2f7dc8; --green: #2a9d5c;
+    --border: #e0dbd3; --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); font-family: 'DM Sans', sans-serif; color: var(--ink);
+    min-height: 100vh; padding: 1.5rem 1rem 4rem; max-width: 480px; margin: 0 auto;
+  }
+  h1 { font-family: 'DM Serif Display', serif; font-size: 2rem; letter-spacing: -0.02em; margin-bottom: 0.2rem; }
+  .subtitle { color: var(--muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
+
+  #setup-screen {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; min-height: 80vh; gap: 1rem; text-align: center;
+  }
+  #setup-screen h1 { font-size: 2.4rem; }
+  #setup-screen p { color: var(--muted); max-width: 280px; line-height: 1.5; }
+  .setup-input {
+    width: 100%; padding: 0.9rem 1rem; border: 2px solid var(--border);
+    border-radius: var(--radius); font-size: 1rem; font-family: 'DM Sans', sans-serif;
+    background: var(--card); outline: none; transition: border-color 0.2s;
+  }
+  .setup-input:focus { border-color: var(--accent); }
+  .btn-primary {
+    width: 100%; padding: 1rem; background: var(--accent); color: #fff;
+    border: none; border-radius: var(--radius); font-size: 1rem;
+    font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer;
+  }
+
+  .saldo-kort {
+    background: var(--ink); color: #fff; border-radius: var(--radius);
+    padding: 1.4rem 1.4rem 1.2rem; margin-bottom: 1.2rem;
+  }
+  .saldo-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.6; }
+  .saldo-belopp { font-family: 'DM Serif Display', serif; font-size: 2.8rem; margin: 0.2rem 0; }
+  .saldo-text { font-size: 0.9rem; opacity: 0.7; }
+  .saldo-totalt { font-size: 0.78rem; opacity: 0.45; margin-top: 0.5rem; }
+  .saldo-kort.noll { background: var(--green); }
+
+  .btn-reglera {
+    width: 100%; padding: 0.8rem; background: transparent; border: 2px solid var(--border);
+    border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
+    color: var(--ink); cursor: pointer; margin-bottom: 1.5rem;
+  }
+
+  .sektion-rubrik { font-family: 'DM Serif Display', serif; font-size: 1.1rem; margin-bottom: 0.8rem; }
+  .kort { background: var(--card); border-radius: var(--radius); padding: 1.2rem; margin-bottom: 1.2rem; border: 1px solid var(--border); }
+  .form-rad { display: flex; gap: 0.6rem; margin-bottom: 0.7rem; }
+
+  input[type=text], input[type=number], select {
+    flex: 1; padding: 0.75rem 0.85rem; border: 1.5px solid var(--border); border-radius: 10px;
+    font-size: 0.95rem; font-family: 'DM Sans', sans-serif; background: var(--bg);
+    color: var(--ink); outline: none; transition: border-color 0.2s;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+
+  .datum-rad {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 0.5rem; margin-bottom: 0.7rem; background: var(--bg);
+    border: 1.5px solid var(--border); border-radius: 10px; padding: 0.4rem 0.5rem;
+  }
+  .datum-pil {
+    background: none; border: none; font-size: 1.3rem; cursor: pointer;
+    color: var(--ink); padding: 0.25rem 0.6rem; border-radius: 6px; line-height: 1;
+  }
+  .datum-pil:active { background: var(--border); }
+  .datum-text { font-size: 0.9rem; color: var(--ink); flex: 1; text-align: center; font-weight: 500; }
+
+  .split-rad { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.7rem; flex-wrap: wrap; }
+  .split-label { font-size: 0.82rem; color: var(--muted); width: 100%; margin-bottom: 0.3rem; }
+  .split-toggle { display: flex; border: 1.5px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .split-toggle button {
+    padding: 0.5rem 0.9rem; border: none; background: transparent;
+    font-family: 'DM Sans', sans-serif; font-size: 0.85rem; cursor: pointer; color: var(--muted);
+  }
+  .split-toggle button.aktiv { background: var(--ink); color: #fff; }
+  .split-inputs { display: flex; gap: 0.5rem; width: 100%; margin-top: 0.4rem; }
+  .split-person { flex: 1; }
+  .split-person label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.2rem; }
+  .egna-info { font-size: 0.78rem; color: var(--muted); margin-top: 0.4rem; font-style: italic; }
+
+  .btn-lagg-till {
+    width: 100%; padding: 0.9rem; background: var(--accent); color: #fff;
+    border: none; border-radius: 10px; font-size: 0.95rem;
+    font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; margin-top: 0.3rem;
+  }
+
+  .historik-lista { display: flex; flex-direction: column; gap: 0.6rem; }
+  .utgift-rad {
+    background: var(--card); border-radius: var(--radius); padding: 1rem 1.1rem;
+    border: 1px solid var(--border); display: flex; justify-content: space-between;
+    align-items: flex-start; cursor: pointer; transition: border-color 0.15s;
+    animation: fadeIn 0.3s ease;
+  }
+  .utgift-rad:active { border-color: var(--accent); }
+  @keyframes fadeIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform:none; } }
+  .utgift-info { flex: 1; }
+  .utgift-beskrivning { font-weight: 500; font-size: 0.95rem; }
+  .utgift-meta { font-size: 0.78rem; color: var(--muted); margin-top: 0.2rem; line-height: 1.5; }
+  .utgift-belopp { text-align: right; }
+  .utgift-totalt { font-family: 'DM Serif Display', serif; font-size: 1.2rem; }
+  .edit-hint { font-size: 0.68rem; color: var(--muted); margin-top: 0.25rem; opacity: 0.6; }
+  .betald-badge { display: inline-block; font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 20px; font-weight: 500; margin-top: 0.25rem; }
+  .betald-badge.p1 { background: #fde8e4; color: var(--accent); }
+  .betald-badge.p2 { background: #e4eefb; color: var(--accent2); }
+  .btn-export {
+    width: 100%; padding: 0.85rem; margin-top: 1rem;
+    background: transparent; border: 2px solid var(--border);
+    border-radius: var(--radius); font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem; color: var(--muted); cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .btn-export:active { border-color: var(--ink); color: var(--ink); }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    z-index: 100; align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.visa { display: flex; }
+  .modal {
+    background: var(--card); border-radius: var(--radius) var(--radius) 0 0;
+    padding: 1.5rem; width: 100%; max-width: 480px;
+    animation: slideUp 0.25s ease; max-height: 90vh; overflow-y: auto;
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal h2 { font-family: 'DM Serif Display', serif; margin-bottom: 0.4rem; }
+  .modal-sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 1.2rem; }
+  .modal p { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.2rem; line-height: 1.5; }
+  .modal-knappar { display: flex; gap: 0.7rem; margin-top: 1rem; }
+  .btn-avbryt {
+    flex: 1; padding: 0.85rem; background: var(--bg); border: 1.5px solid var(--border);
+    border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; cursor: pointer;
+  }
+  .btn-bekrafta {
+    flex: 1; padding: 0.85rem; background: var(--green); color: #fff; border: none;
+    border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 500; cursor: pointer;
+  }
+  .btn-radera {
+    padding: 0.85rem 1rem; background: #fde8e4; color: var(--accent); border: none;
+    border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 0.95rem; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div id="setup-screen">
+  <h1>Kvitts</h1>
+  <p>Ange namnet på den andra personen du delar utgifter med.</p>
+  <input class="setup-input" id="setup-namn" type="text" placeholder="T.ex. Anna, Sara, Jonas..."/>
+  <button class="btn-primary" onclick="sparaSetup()">Kom igång →</button>
+</div>
+
+<div id="app" style="display:none">
+  <h1>Kvitts</h1>
+  <p class="subtitle" id="app-subtitle"></p>
+
+  <div class="saldo-kort" id="saldo-kort">
+    <div class="saldo-label">Aktuellt saldo</div>
+    <div class="saldo-belopp" id="saldo-belopp">0 kr</div>
+    <div class="saldo-text" id="saldo-text"></div>
+    <div class="saldo-totalt" id="saldo-totalt"></div>
+  </div>
+  <button class="btn-reglera" onclick="visaRegleraModal()">✓ Markera som reglerat</button>
+
+  <div class="sektion-rubrik">Ny utgift</div>
+  <div class="kort">
+    <div class="form-rad">
+      <input type="text" id="beskrivning" placeholder="Beskrivning (t.ex. mat, taxi...)"/>
+    </div>
+    <div class="form-rad">
+      <input type="number" id="belopp" placeholder="Belopp (kr)" min="0" step="0.01" style="flex:1; min-width:0;"/>
+      <select id="betalare" style="flex:1; min-width:0;">
+        <option value="p1">Mikael</option>
+        <option value="p2" id="p2-option">Person 2</option>
+      </select>
+    </div>
+    <div class="datum-rad">
+      <button class="datum-pil" onclick="andradatum(-1)">&#8249;</button>
+      <span class="datum-text" id="datum-text"></span>
+      <button class="datum-pil" onclick="andradatum(1)">&#8250;</button>
+    </div>
+    <div class="split-rad">
+      <div class="split-label">Hur delas utgiften?</div>
+      <div class="split-toggle">
+        <button id="toggle-50" class="aktiv" onclick="setSplitTyp('50')">50/50</button>
+        <button id="toggle-egna" onclick="setSplitTyp('egna')">Egna kostnader</button>
+      </div>
+    </div>
+    <div id="split-inputs-wrapper" style="display:none; margin-bottom:0.7rem;">
+      <div class="split-inputs">
+        <div class="split-person">
+          <label>Mikaels egna (kr)</label>
+          <input type="number" id="split-p1" placeholder="0" min="0" step="0.01" oninput="uppdateraEgnaInfo()"/>
+        </div>
+        <div class="split-person">
+          <label id="split-p2-label">Persons egna (kr)</label>
+          <input type="number" id="split-p2" placeholder="0" min="0" step="0.01" oninput="uppdateraEgnaInfo()"/>
+        </div>
+      </div>
+      <div class="egna-info" id="egna-info"></div>
+    </div>
+    <button class="btn-lagg-till" onclick="laggTillUtgift()">+ Lägg till</button>
+  </div>
+
+  <div class="sektion-rubrik">Historik</div>
+  <div class="historik-lista" id="historik-lista">
+    <div class="tom-historik">Inga utgifter ännu.</div>
+  </div>
+
+  <button class="btn-export" onclick="exportera()" id="export-btn" style="display:none">⬇ Exportera som CSV</button>
+</div>
+
+<!-- REGLERA MODAL -->
+<div class="modal-overlay" id="reglera-modal">
+  <div class="modal">
+    <h2>Reglera skuld</h2>
+    <p id="reglera-text"></p>
+    <div class="modal-knappar">
+      <button class="btn-avbryt" onclick="stangModal('reglera-modal')">Avbryt</button>
+      <button class="btn-bekrafta" onclick="reglera()">Reglera</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <h2>Redigera utgift</h2>
+    <div class="modal-sub" id="edit-rubrik"></div>
+    <div class="form-rad">
+      <input type="number" id="edit-belopp" placeholder="Belopp (kr)" min="0" step="0.01" style="flex:1; min-width:0;"/>
+      <select id="edit-betalare" style="flex:1; min-width:0;">
+        <option value="p1">Mikael</option>
+        <option value="p2" id="edit-p2-option">Person 2</option>
+      </select>
+    </div>
+    <div class="split-rad">
+      <div class="split-label">Hur delas utgiften?</div>
+      <div class="split-toggle">
+        <button id="edit-toggle-50" class="aktiv" onclick="setEditSplitTyp('50')">50/50</button>
+        <button id="edit-toggle-egna" onclick="setEditSplitTyp('egna')">Egna kostnader</button>
+      </div>
+    </div>
+    <div id="edit-split-inputs-wrapper" style="display:none; margin-bottom:0.7rem;">
+      <div class="split-inputs">
+        <div class="split-person">
+          <label>Mikaels egna (kr)</label>
+          <input type="number" id="edit-split-p1" placeholder="0" min="0" step="0.01" oninput="uppdateraEditEgnaInfo()"/>
+        </div>
+        <div class="split-person">
+          <label id="edit-split-p2-label">Persons egna (kr)</label>
+          <input type="number" id="edit-split-p2" placeholder="0" min="0" step="0.01" oninput="uppdateraEditEgnaInfo()"/>
+        </div>
+      </div>
+      <div class="egna-info" id="edit-egna-info"></div>
+    </div>
+    <div class="modal-knappar">
+      <button class="btn-radera" onclick="raderaUtgift()">&#128465;</button>
+      <button class="btn-avbryt" onclick="stangModal('edit-modal')">Avbryt</button>
+      <button class="btn-bekrafta" onclick="sparaEdit()">Spara</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let person2 = "";
+  let splitTyp = "50";
+  let editSplitTyp = "50";
+  let utgifter = [];
+  let valtDatum = new Date();
+  let editId = null;
+
+  // DATUM
+  function datumTillStr(d) { return d.toLocaleDateString("sv-SE"); }
+  function datumVisText(d) {
+    const idag = new Date(); idag.setHours(0,0,0,0);
+    const igår = new Date(idag); igår.setDate(igår.getDate()-1);
+    const imorgon = new Date(idag); imorgon.setDate(imorgon.getDate()+1);
+    const jmf = new Date(d); jmf.setHours(0,0,0,0);
+    if (jmf.getTime() === idag.getTime()) return "Idag · " + datumTillStr(d);
+    if (jmf.getTime() === igår.getTime()) return "Igår · " + datumTillStr(d);
+    if (jmf.getTime() === imorgon.getTime()) return "Imorgon · " + datumTillStr(d);
+    return datumTillStr(d);
+  }
+  function andradatum(steg) {
+    valtDatum = new Date(valtDatum);
+    valtDatum.setDate(valtDatum.getDate() + steg);
+    document.getElementById("datum-text").textContent = datumVisText(valtDatum);
+  }
+  function resetDatum() {
+    valtDatum = new Date();
+    document.getElementById("datum-text").textContent = datumVisText(valtDatum);
+  }
+
+  // INIT
+  function init() {
+    const sparad = localStorage.getItem("splitwise_person2");
+    if (sparad) {
+      person2 = sparad;
+      utgifter = JSON.parse(localStorage.getItem("splitwise_utgifter") || "[]");
+      visaApp();
+    }
+  }
+  function sparaSetup() {
+    const v = document.getElementById("setup-namn").value.trim();
+    if (!v) return;
+    person2 = v;
+    localStorage.setItem("splitwise_person2", person2);
+    utgifter = [];
+    visaApp();
+  }
+  function visaApp() {
+    document.getElementById("setup-screen").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    document.getElementById("app-subtitle").textContent = "Mikael & " + person2;
+    document.getElementById("p2-option").textContent = person2;
+    document.getElementById("split-p2-label").textContent = person2 + "s egna (kr)";
+    document.getElementById("edit-p2-option").textContent = person2;
+    document.getElementById("edit-split-p2-label").textContent = person2 + "s egna (kr)";
+    resetDatum();
+    uppdatera();
+    document.getElementById("export-btn").style.display = utgifter.length > 0 ? "block" : "none";
+  }
+
+  // SPLIT-TYP
+  function setSplitTyp(typ) {
+    splitTyp = typ;
+    document.getElementById("toggle-50").classList.toggle("aktiv", typ === "50");
+    document.getElementById("toggle-egna").classList.toggle("aktiv", typ === "egna");
+    document.getElementById("split-inputs-wrapper").style.display = typ === "egna" ? "block" : "none";
+    if (typ === "egna") uppdateraEgnaInfo();
+  }
+  function setEditSplitTyp(typ) {
+    editSplitTyp = typ;
+    document.getElementById("edit-toggle-50").classList.toggle("aktiv", typ === "50");
+    document.getElementById("edit-toggle-egna").classList.toggle("aktiv", typ === "egna");
+    document.getElementById("edit-split-inputs-wrapper").style.display = typ === "egna" ? "block" : "none";
+    if (typ === "egna") uppdateraEditEgnaInfo();
+  }
+
+  // EGNA-INFO (live preview)
+  function egnaInfoText(bel, egnaP1, egnaP2) {
+    const kvar = bel - egnaP1 - egnaP2;
+    if (isNaN(bel) || bel <= 0) return "";
+    if (kvar < -0.001) return "⚠️ Egna kostnader (" + (egnaP1+egnaP2).toFixed(2).replace(".",",") + " kr) överstiger totalt (" + bel.toFixed(2).replace(".",",") + " kr)";
+    const delat = kvar / 2;
+    return "Delas: " + kvar.toFixed(2).replace(".",",") + " kr ÷ 2 = " + delat.toFixed(2).replace(".",",") + " kr var";
+  }
+  function uppdateraEgnaInfo() {
+    const bel = parseFloat(document.getElementById("belopp").value) || 0;
+    const e1 = parseFloat(document.getElementById("split-p1").value) || 0;
+    const e2 = parseFloat(document.getElementById("split-p2").value) || 0;
+    document.getElementById("egna-info").textContent = egnaInfoText(bel, e1, e2);
+  }
+  function uppdateraEditEgnaInfo() {
+    const bel = parseFloat(document.getElementById("edit-belopp").value) || 0;
+    const e1 = parseFloat(document.getElementById("edit-split-p1").value) || 0;
+    const e2 = parseFloat(document.getElementById("edit-split-p2").value) || 0;
+    document.getElementById("edit-egna-info").textContent = egnaInfoText(bel, e1, e2);
+  }
+
+  // BERÄKNA ANDELAR
+  // delP1 = vad Mikael ska betala totalt, delP2 = vad person2 ska betala totalt
+  function raknaDel(bel, typ, idP1, idP2) {
+    if (typ === "50") return { delP1: bel/2, delP2: bel/2 };
+    const egnaP1 = parseFloat(document.getElementById(idP1).value) || 0;
+    const egnaP2 = parseFloat(document.getElementById(idP2).value) || 0;
+    const kvar = bel - egnaP1 - egnaP2;
+    if (kvar < -0.001) return null; // ogiltig
+    const delat = kvar / 2;
+    return { delP1: egnaP1 + delat, delP2: egnaP2 + delat };
+  }
+
+  // LÄGG TILL
+  function laggTillUtgift() {
+    const besk = document.getElementById("beskrivning").value.trim();
+    const bel = parseFloat(document.getElementById("belopp").value);
+    const betalare = document.getElementById("betalare").value;
+    if (!besk || isNaN(bel) || bel <= 0) { alert("Fyll i beskrivning och belopp."); return; }
+    const result = raknaDel(bel, splitTyp, "split-p1", "split-p2");
+    if (!result) { alert("Egna kostnader överstiger totalt belopp."); return; }
+    const {delP1, delP2} = result;
+    utgifter.unshift({ id: Date.now(), beskrivning: besk, belopp: bel, betalare, delP1, delP2, datum: datumTillStr(valtDatum) });
+    spara();
+    document.getElementById("beskrivning").value = "";
+    document.getElementById("belopp").value = "";
+    document.getElementById("split-p1").value = "";
+    document.getElementById("split-p2").value = "";
+    document.getElementById("egna-info").textContent = "";
+    setSplitTyp("50");
+    resetDatum();
+    uppdatera();
+  }
+
+  // EDIT - öppna
+  function oppnaEdit(id) {
+    const u = utgifter.find(x => x.id === id);
+    if (!u) return;
+    editId = id;
+    document.getElementById("edit-rubrik").textContent = u.beskrivning + "  ·  " + u.datum;
+    document.getElementById("edit-belopp").value = u.belopp;
+    document.getElementById("edit-betalare").value = u.betalare;
+    // Detektera om det är 50/50 eller egna
+    const ar5050 = Math.abs(u.delP1 - u.delP2) < 0.001 && Math.abs(u.delP1 - u.belopp/2) < 0.001;
+    if (ar5050) {
+      setEditSplitTyp("50");
+      document.getElementById("edit-split-p1").value = "";
+      document.getElementById("edit-split-p2").value = "";
+    } else {
+      // Räkna tillbaka egna från delP1/delP2:
+      // delP1 = egnaP1 + (bel-egnaP1-egnaP2)/2  =>  egnaP1 = delP1 - (bel-egnaP1-egnaP2)/2
+      // Enklast: spara egna separat. Men för gamla poster: visa delP1/delP2 direkt i egna-fälten
+      // och sätt delat=0 (dvs egnaP1=delP1, egnaP2=delP2)
+      setEditSplitTyp("egna");
+      // Försök rekonstruera: kvar = bel - egnaP1 - egnaP2, delat = kvar/2
+      // delP1 = egnaP1 + delat, delP2 = egnaP2 + delat
+      // delP1 + delP2 = egnaP1 + egnaP2 + kvar = egnaP1 + egnaP2 + bel - egnaP1 - egnaP2 = bel ✓
+      // delP1 - delP2 = egnaP1 - egnaP2  =>  egnaP1 - egnaP2 = delP1 - delP2
+      // Och: egnaP1 + egnaP2 = bel - kvar. Men vi don't know kvar separately.
+      // Enklaste: visa 0 i egna och låt användaren justera, ELLER lagra egna i datat.
+      // Här visar vi de sparade delP1/delP2 minus hälften som "egna" (approximation för gamla poster)
+      const halvt = u.belopp / 2;
+      const egnaP1 = Math.max(0, u.delP1 - halvt + (u.delP2 - halvt));
+      // Säkrare: lagra egna i ny post. För gamla: visa 0 och låt delP1/delP2 synas i info
+      document.getElementById("edit-split-p1").value = "";
+      document.getElementById("edit-split-p2").value = "";
+      uppdateraEditEgnaInfo();
+    }
+    document.getElementById("edit-modal").classList.add("visa");
+  }
+
+  // EDIT - spara
+  function sparaEdit() {
+    const bel = parseFloat(document.getElementById("edit-belopp").value);
+    const betalare = document.getElementById("edit-betalare").value;
+    if (isNaN(bel) || bel <= 0) { alert("Ange ett giltigt belopp."); return; }
+    const result = raknaDel(bel, editSplitTyp, "edit-split-p1", "edit-split-p2");
+    if (!result) { alert("Egna kostnader överstiger totalt belopp."); return; }
+    const {delP1, delP2} = result;
+    const idx = utgifter.findIndex(x => x.id === editId);
+    if (idx !== -1) {
+      utgifter[idx] = { ...utgifter[idx], belopp: bel, betalare, delP1, delP2 };
+    }
+    spara();
+    uppdatera();
+    stangModal("edit-modal");
+  }
+
+  function raderaUtgift() {
+    if (!confirm("Ta bort utgiften?")) return;
+    utgifter = utgifter.filter(x => x.id !== editId);
+    spara();
+    uppdatera();
+    stangModal("edit-modal");
+  }
+
+  // SALDO: positiv = p2 skyldig Mikael, negativ = Mikael skyldig p2
+  function raknaUtSaldo() {
+    let saldo = 0;
+    for (const u of utgifter) saldo += u.betalare === "p1" ? u.delP2 : -u.delP1;
+    return saldo;
+  }
+
+  function uppdatera() {
+    const saldo = raknaUtSaldo();
+    const totalt = utgifter.reduce((s, u) => s + u.belopp, 0);
+    const kortEl = document.getElementById("saldo-kort");
+    const belEl = document.getElementById("saldo-belopp");
+    const txtEl = document.getElementById("saldo-text");
+    const totaltEl = document.getElementById("saldo-totalt");
+
+    belEl.textContent = Math.abs(saldo).toFixed(2).replace(".",",") + " kr";
+    if (Math.abs(saldo) < 0.01) {
+      kortEl.className = "saldo-kort noll";
+      txtEl.textContent = "Ni är quitt! 🎉";
+      totaltEl.textContent = totalt > 0 ? "Totalt " + totalt.toFixed(2).replace(".",",") + " kr i utgifter" : "";
+    } else if (saldo > 0) {
+      kortEl.className = "saldo-kort";
+      txtEl.textContent = person2 + " är skyldig Mikael";
+      totaltEl.textContent = "av totalt " + totalt.toFixed(2).replace(".",",") + " kr i utgifter";
+    } else {
+      kortEl.className = "saldo-kort";
+      txtEl.textContent = "Mikael är skyldig " + person2;
+      totaltEl.textContent = "av totalt " + totalt.toFixed(2).replace(".",",") + " kr i utgifter";
+    }
+
+    const lista = document.getElementById("historik-lista");
+    if (utgifter.length === 0) {
+      lista.innerHTML = '<div class="tom-historik">Inga utgifter ännu.</div>';
+      return;
+    }
+    lista.innerHTML = utgifter.map(u => {
+      const betalareNamn = u.betalare === "p1" ? "Mikael" : person2;
+      const badgeKlass = u.betalare === "p1" ? "p1" : "p2";
+      return `
+        <div class="utgift-rad" onclick="oppnaEdit(${u.id})">
+          <div class="utgift-info">
+            <div class="utgift-beskrivning">${esc(u.beskrivning)}</div>
+            <div class="utgift-meta">
+              ${u.datum}<br>
+              Mikael: ${u.delP1.toFixed(2).replace(".",",")} kr &nbsp;·&nbsp; ${esc(person2)}: ${u.delP2.toFixed(2).replace(".",",")} kr
+            </div>
+            <span class="betald-badge ${badgeKlass}">Betalt av ${esc(betalareNamn)}</span>
+          </div>
+          <div class="utgift-belopp">
+            <div class="utgift-totalt">${u.belopp.toFixed(2).replace(".",",")} kr</div>
+            <div class="edit-hint">tryck för att redigera</div>
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  function esc(s) { return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  function visaRegleraModal() {
+    const saldo = raknaUtSaldo();
+    let txt = "Nollställer saldot och arkiverar alla utgifter.";
+    if (Math.abs(saldo) >= 0.01) {
+      const vem = saldo > 0 ? person2 + " betalar Mikael" : "Mikael betalar " + person2;
+      txt = vem + " " + Math.abs(saldo).toFixed(2).replace(".",",") + " kr för att reglera. Bekräfta?";
+    }
+    document.getElementById("reglera-text").textContent = txt;
+    document.getElementById("reglera-modal").classList.add("visa");
+  }
+  function stangModal(id) { document.getElementById(id).classList.remove("visa"); }
+  function reglera() { utgifter = []; spara(); uppdatera(); stangModal("reglera-modal"); }
+  function exportera() {
+    const saldo = raknaUtSaldo();
+    const saldoText = Math.abs(saldo) < 0.01
+      ? "Quitt"
+      : (saldo > 0 ? person2 + " skyldig Mikael " : "Mikael skyldig " + person2 + " ") + Math.abs(saldo).toFixed(2) + " kr";
+
+    const rader = [
+      ["Kvitts – export " + new Date().toLocaleDateString("sv-SE")],
+      ["Saldo: " + saldoText],
+      [""],
+      ["Datum", "Beskrivning", "Totalt (kr)", "Mikaels del (kr)", person2 + "s del (kr)", "Betalad av"]
+    ];
+
+    for (const u of [...utgifter].reverse()) {
+      rader.push([
+        u.datum,
+        u.beskrivning,
+        u.belopp.toFixed(2),
+        u.delP1.toFixed(2),
+        u.delP2.toFixed(2),
+        u.betalare === "p1" ? "Mikael" : person2
+      ]);
+    }
+
+    const csv = rader.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(";")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "dela-notan-" + new Date().toLocaleDateString("sv-SE") + ".csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function spara() {
+    localStorage.setItem("splitwise_utgifter", JSON.stringify(utgifter));
+    document.getElementById("export-btn").style.display = utgifter.length > 0 ? "block" : "none";
+  }
+
+  init();
+</script>
+</body>
+</html>
