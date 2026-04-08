@@ -1,5 +1,7 @@
 // Extracted pure logic functions from index.html for testability.
-// These mirror the functions in <script> exactly — any fix here must be synced back.
+// These mirror the functions in <script> except raknaDel, which takes numeric
+// values directly instead of DOM element IDs (to decouple from the DOM).
+// Any fix here must be synced back.
 
 /**
  * Calculate each person's share of an expense.
@@ -43,7 +45,7 @@ function egnaInfoText(bel, egnaP1, egnaP2) {
   if (isNaN(bel) || bel <= 0) return "";
   if (kvar < -0.001)
     return (
-      "Egna kostnader (" +
+      "⚠️ Egna kostnader (" +
       (egnaP1 + egnaP2).toFixed(2).replace(".", ",") +
       " kr) överstiger totalt (" +
       bel.toFixed(2).replace(".", ",") +
