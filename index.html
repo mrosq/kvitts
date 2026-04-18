@@ -121,6 +121,13 @@
     transition: border-color 0.2s, color 0.2s;
   }
   .btn-export:active { border-color: var(--ink); color: var(--ink); }
+  .btn-grupp { display: flex; gap: 0.6rem; margin-top: 1rem; }
+  .btn-grupp .btn-export { margin-top: 0; }
+  .btn-text {
+    background: none; border: none; color: var(--muted);
+    font-family: 'DM Sans', sans-serif; font-size: 0.85rem;
+    text-decoration: underline; cursor: pointer; margin-top: 0.5rem;
+  }
 
   .modal-overlay {
     display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45);
@@ -158,7 +165,9 @@
   <p>Ange namnet på den andra personen du delar utgifter med.</p>
   <input class="setup-input" id="setup-namn" type="text" placeholder="T.ex. Anna, Sara, Jonas..."/>
   <button class="btn-primary" onclick="sparaSetup()">Kom igång →</button>
+  <button class="btn-text" onclick="document.getElementById('ladda-input').click()">eller ladda en sparad fil</button>
 </div>
+<input type="file" id="ladda-input" accept=".json,application/json" style="display:none" onchange="laddaFil(event)"/>
 
 <div id="app" style="display:none">
   <h1>Kvitts</h1>
@@ -217,7 +226,10 @@
     <div class="tom-historik">Inga utgifter ännu.</div>
   </div>
 
-  <button class="btn-export" onclick="exportera()" id="export-btn" style="display:none">⬇ Exportera som CSV</button>
+  <div class="btn-grupp">
+    <button class="btn-export" onclick="document.getElementById('ladda-input').click()">⬆ Ladda fil</button>
+    <button class="btn-export" onclick="sparaFil()" id="spara-fil-btn" style="display:none">⬇ Spara fil</button>
+  </div>
 </div>
 
 <!-- REGLERA MODAL -->
@@ -329,7 +341,7 @@
     document.getElementById("edit-split-p2-label").textContent = person2 + "s egna (kr)";
     resetDatum();
     uppdatera();
-    document.getElementById("export-btn").style.display = utgifter.length > 0 ? "block" : "none";
+    document.getElementById("spara-fil-btn").style.display = utgifter.length > 0 ? "block" : "none";
   }
 
   // SPLIT-TYP
@@ -534,43 +546,47 @@
   }
   function stangModal(id) { document.getElementById(id).classList.remove("visa"); }
   function reglera() { utgifter = []; spara(); uppdatera(); stangModal("reglera-modal"); }
-  function exportera() {
-    const saldo = raknaUtSaldo();
-    const saldoText = Math.abs(saldo) < 0.01
-      ? "Quitt"
-      : (saldo > 0 ? person2 + " skyldig Mikael " : "Mikael skyldig " + person2 + " ") + Math.abs(saldo).toFixed(2) + " kr";
-
-    const rader = [
-      ["Kvitts – export " + new Date().toLocaleDateString("sv-SE")],
-      ["Saldo: " + saldoText],
-      [""],
-      ["Datum", "Beskrivning", "Totalt (kr)", "Mikaels del (kr)", person2 + "s del (kr)", "Betalad av"]
-    ];
-
-    for (const u of [...utgifter].reverse()) {
-      rader.push([
-        u.datum,
-        u.beskrivning,
-        u.belopp.toFixed(2),
-        u.delP1.toFixed(2),
-        u.delP2.toFixed(2),
-        u.betalare === "p1" ? "Mikael" : person2
-      ]);
-    }
-
-    const csv = rader.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(";")).join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  function sparaFil() {
+    const data = { version: 1, exporterad: new Date().toISOString(), person2, utgifter };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "dela-notan-" + new Date().toLocaleDateString("sv-SE") + ".csv";
+    a.download = "kvitts-" + new Date().toLocaleDateString("sv-SE") + ".json";
     a.click();
     URL.revokeObjectURL(url);
   }
 
+  function laddaFil(event) {
+    const fil = event.target.files[0];
+    if (!fil) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (typeof data.person2 !== "string" || !Array.isArray(data.utgifter)) {
+          alert("Filen ser inte ut som en giltig Kvitts-fil.");
+          return;
+        }
+        if (utgifter.length > 0 && !confirm("Detta ersätter dina nuvarande utgifter. Fortsätt?")) {
+          return;
+        }
+        person2 = data.person2;
+        utgifter = data.utgifter;
+        localStorage.setItem("splitwise_person2", person2);
+        spara();
+        visaApp();
+      } catch (err) {
+        alert("Kunde inte läsa filen: " + err.message);
+      }
+    };
+    reader.readAsText(fil);
+    event.target.value = "";
+  }
+
   function spara() {
     localStorage.setItem("splitwise_utgifter", JSON.stringify(utgifter));
-    document.getElementById("export-btn").style.display = utgifter.length > 0 ? "block" : "none";
+    document.getElementById("spara-fil-btn").style.display = utgifter.length > 0 ? "block" : "none";
   }
 
   init();
