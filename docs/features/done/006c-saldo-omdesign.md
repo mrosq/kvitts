@@ -1,6 +1,6 @@
 # 006c – Saldo-UI-omdesign
 
-**Status:** open
+**Status:** done
 **Skapad:** 2026-04-19
 **Del av:** 006 (multi-person i lokalt läge), UI-bas för fler personer.
 **Beroende:** 006a (behöver `raknaUtSaldo` och `raknaParSaldon`).

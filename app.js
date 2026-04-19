@@ -1,5 +1,4 @@
-// State (N personer – se docs/features/006a). UI:t bygger fortfarande på N=2
-// och läser via `person1`/`person2`-aliasen, som synkas från `personer`.
+// State (N personer – se docs/features/006a). UI:t stöder N>=2.
 let personer = [];
 let migId = "p1";
 let person1 = "";
@@ -113,6 +112,8 @@ function visaSkarm3a() {
   doljAllaSkärmar();
   document.getElementById("intro-3a-text").textContent = "Vem delar du utgifter med, " + person1 + "?";
   document.getElementById("intro-3a").style.display = "flex";
+  document.getElementById("setup-namn-lista").innerHTML = "";
+  laggTillPersonFalt();
 }
 
 function visaSkarm3b() {
@@ -133,14 +134,35 @@ function sparaOchGaTillSkarm2() {
   visaSkarm2();
 }
 
+// SETUP – dynamiska personnamns-fält
+function laggTillPersonFalt() {
+  const lista = document.getElementById("setup-namn-lista");
+  const input = document.createElement("input");
+  input.className = "setup-input";
+  input.type = "text";
+  input.placeholder = "T.ex. Anna, Erik...";
+  input.maxLength = 20;
+  input.oninput = uppdateraSetupKnapp;
+  input.onkeydown = (e) => { if (e.key === "Enter") sparaSetup(); };
+  lista.appendChild(input);
+  input.focus();
+  uppdateraSetupKnapp();
+}
+
+function uppdateraSetupKnapp() {
+  const inputs = document.querySelectorAll("#setup-namn-lista input");
+  const harNamn = Array.from(inputs).some(i => i.value.trim() !== "");
+  document.getElementById("btn-kom-igang").disabled = !harNamn;
+  // Max 7 andra (8 totalt inkl. användaren)
+  document.getElementById("btn-lagg-till-person").disabled = inputs.length >= 7;
+}
+
 function sparaSetup() {
-  const v = document.getElementById("setup-namn").value.trim();
-  if (!v) return;
-  person2 = v;
-  personer = [
-    { id: "p1", namn: person1 },
-    { id: "p2", namn: person2 },
-  ];
+  const inputs = document.querySelectorAll("#setup-namn-lista input");
+  const namn = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
+  if (namn.length === 0) return;
+  personer = [{ id: "p1", namn: person1 }];
+  namn.forEach((n, i) => personer.push({ id: "p" + (i + 2), namn: n }));
   migId = "p1";
   localStorage.setItem("kvitts_personer", JSON.stringify(personer));
   localStorage.setItem("kvitts_person_mig", migId);
@@ -152,17 +174,48 @@ function sparaSetup() {
 function visaApp() {
   document.querySelectorAll(".intro-skarm").forEach(el => el.style.display = "none");
   document.getElementById("app").style.display = "block";
-  document.getElementById("app-subtitle").textContent = person1 + " & " + person2;
-  document.getElementById("p1-option").textContent = person1;
-  document.getElementById("edit-p1-option").textContent = person1;
-  document.getElementById("p2-option").textContent = person2;
-  document.getElementById("split-p1-label").textContent = person1 + "s egna (kr)";
-  document.getElementById("split-p2-label").textContent = person2 + "s egna (kr)";
-  document.getElementById("edit-split-p1-label").textContent = person1 + "s egna (kr)";
-  document.getElementById("edit-split-p2-label").textContent = person2 + "s egna (kr)";
+  syncaPersonAlias();
+
+  const andra = personer.filter(p => p.id !== migId);
+  let subtitle;
+  if (andra.length === 1) subtitle = person1 + " & " + andra[0].namn;
+  else if (andra.length === 2) subtitle = person1 + ", " + andra[0].namn + " & " + andra[1].namn;
+  else subtitle = person1 + " & " + andra.length + " andra";
+  document.getElementById("app-subtitle").textContent = subtitle;
+
+  populeraBetalarDropdowns();
+  populeraSplitFalt("split-inputs-container", "uppdateraEgnaInfo");
+  populeraSplitFalt("edit-split-inputs-container", "uppdateraEditEgnaInfo");
+
   resetDatum();
   uppdatera();
   document.getElementById("spara-fil-btn").style.display = utgifter.length > 0 ? "block" : "none";
+}
+
+function populeraBetalarDropdowns() {
+  ["betalare", "edit-betalare"].forEach(id => {
+    const sel = document.getElementById(id);
+    sel.innerHTML = personer.map(p => `<option value="${p.id}">${esc(p.namn)}</option>`).join("");
+    sel.value = migId;
+  });
+}
+
+function populeraSplitFalt(containerId, callbackNamn) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = personer.map(p => `
+    <div class="split-person">
+      <label>${esc(p.namn)}s egna (kr)</label>
+      <input type="number" id="${containerId}-${p.id}" placeholder="0" min="0" step="0.01" oninput="${callbackNamn}()"/>
+    </div>`).join("");
+}
+
+function hamtaEgna(containerId) {
+  const egna = {};
+  for (const p of personer) {
+    egna[p.id] = parseFloat(document.getElementById(containerId + "-" + p.id)?.value) || 0;
+  }
+  return egna;
 }
 
 // SPLIT-TYP
@@ -187,15 +240,11 @@ function deltagareIds() {
 }
 function uppdateraEgnaInfo() {
   const bel = parseFloat(document.getElementById("belopp").value) || 0;
-  const e1 = parseFloat(document.getElementById("split-p1").value) || 0;
-  const e2 = parseFloat(document.getElementById("split-p2").value) || 0;
-  document.getElementById("egna-info").textContent = egnaInfoText(bel, { p1: e1, p2: e2 }, deltagareIds());
+  document.getElementById("egna-info").textContent = egnaInfoText(bel, hamtaEgna("split-inputs-container"), deltagareIds());
 }
 function uppdateraEditEgnaInfo() {
   const bel = parseFloat(document.getElementById("edit-belopp").value) || 0;
-  const e1 = parseFloat(document.getElementById("edit-split-p1").value) || 0;
-  const e2 = parseFloat(document.getElementById("edit-split-p2").value) || 0;
-  document.getElementById("edit-egna-info").textContent = egnaInfoText(bel, { p1: e1, p2: e2 }, deltagareIds());
+  document.getElementById("edit-egna-info").textContent = egnaInfoText(bel, hamtaEgna("edit-split-inputs-container"), deltagareIds());
 }
 
 // LÄGG TILL
@@ -204,9 +253,7 @@ function laggTillUtgift() {
   const bel = parseFloat(document.getElementById("belopp").value);
   const betalare_id = document.getElementById("betalare").value;
   if (!besk || isNaN(bel) || bel <= 0) { alert("Fyll i beskrivning och belopp."); return; }
-  const egnaP1 = parseFloat(document.getElementById("split-p1").value) || 0;
-  const egnaP2 = parseFloat(document.getElementById("split-p2").value) || 0;
-  const fordelning = raknaDel(bel, splitTyp, deltagareIds(), { p1: egnaP1, p2: egnaP2 });
+  const fordelning = raknaDel(bel, splitTyp, deltagareIds(), hamtaEgna("split-inputs-container"));
   if (!fordelning) { alert("Egna kostnader överstiger totalt belopp."); return; }
   utgifter.unshift({
     id: Date.now(),
@@ -219,8 +266,6 @@ function laggTillUtgift() {
   spara();
   document.getElementById("beskrivning").value = "";
   document.getElementById("belopp").value = "";
-  document.getElementById("split-p1").value = "";
-  document.getElementById("split-p2").value = "";
   document.getElementById("egna-info").textContent = "";
   setSplitTyp("jamnt");
   resetDatum();
@@ -235,12 +280,14 @@ function oppnaEdit(id) {
   document.getElementById("edit-rubrik").textContent = u.beskrivning + "  ·  " + u.datum;
   document.getElementById("edit-belopp").value = u.belopp;
   document.getElementById("edit-betalare").value = u.betalare_id;
-  const delP1 = u.fordelning?.p1 || 0;
-  const delP2 = u.fordelning?.p2 || 0;
-  const arJamnt = Math.abs(delP1 - delP2) < 0.001 && Math.abs(delP1 - u.belopp/2) < 0.001;
+  const n = personer.length;
+  const expectedShare = u.belopp / n;
+  const arJamnt = personer.every(p => Math.abs((u.fordelning?.[p.id] || 0) - expectedShare) < 0.001);
   setEditSplitTyp(arJamnt ? "jamnt" : "egna");
-  document.getElementById("edit-split-p1").value = "";
-  document.getElementById("edit-split-p2").value = "";
+  for (const p of personer) {
+    const inp = document.getElementById("edit-split-inputs-container-" + p.id);
+    if (inp) inp.value = "";
+  }
   if (!arJamnt) uppdateraEditEgnaInfo();
   document.getElementById("edit-modal").classList.add("visa");
 }
@@ -250,9 +297,7 @@ function sparaEdit() {
   const bel = parseFloat(document.getElementById("edit-belopp").value);
   const betalare_id = document.getElementById("edit-betalare").value;
   if (isNaN(bel) || bel <= 0) { alert("Ange ett giltigt belopp."); return; }
-  const egnaP1 = parseFloat(document.getElementById("edit-split-p1").value) || 0;
-  const egnaP2 = parseFloat(document.getElementById("edit-split-p2").value) || 0;
-  const fordelning = raknaDel(bel, editSplitTyp, deltagareIds(), { p1: egnaP1, p2: egnaP2 });
+  const fordelning = raknaDel(bel, editSplitTyp, deltagareIds(), hamtaEgna("edit-split-inputs-container"));
   if (!fordelning) { alert("Egna kostnader överstiger totalt belopp."); return; }
   const idx = utgifter.findIndex(x => x.id === editId);
   if (idx !== -1) {
@@ -273,27 +318,29 @@ function raderaUtgift() {
 
 function uppdatera() {
   const saldoMap = raknaUtSaldo(utgifter, personer);
-  // 006a-konvention: bevarat UI-beteende för N=2. saldoMig > 0 ⇔ p2 skyldig p1.
   const saldoMig = saldoMap[migId] || 0;
   const totalt = utgifter.reduce((s, u) => s + u.belopp, 0);
   const kortEl = document.getElementById("saldo-kort");
+  const labelEl = document.getElementById("saldo-label");
   const belEl = document.getElementById("saldo-belopp");
   const txtEl = document.getElementById("saldo-text");
-  const totaltEl = document.getElementById("saldo-totalt");
 
-  belEl.textContent = Math.abs(saldoMig).toFixed(2).replace(".",",") + " kr";
+  const totaltTxt = totalt > 0 ? "Totalt " + totalt.toFixed(2).replace(".",",") + " kr i utgifter" : "";
   if (Math.abs(saldoMig) < 0.01) {
     kortEl.className = "saldo-kort noll";
-    txtEl.textContent = "Ni är quitt! 🎉";
-    totaltEl.textContent = totalt > 0 ? "Totalt " + totalt.toFixed(2).replace(".",",") + " kr i utgifter" : "";
+    labelEl.textContent = "Jämnt";
+    belEl.textContent = "";
+    txtEl.textContent = totaltTxt;
   } else if (saldoMig > 0) {
     kortEl.className = "saldo-kort";
-    txtEl.textContent = person2 + " är skyldig " + person1;
-    totaltEl.textContent = "av totalt " + totalt.toFixed(2).replace(".",",") + " kr i utgifter";
+    labelEl.textContent = "Du skall få";
+    belEl.textContent = Math.abs(saldoMig).toFixed(2).replace(".",",") + " kr";
+    txtEl.textContent = totaltTxt;
   } else {
     kortEl.className = "saldo-kort";
-    txtEl.textContent = person1 + " är skyldig " + person2;
-    totaltEl.textContent = "av totalt " + totalt.toFixed(2).replace(".",",") + " kr i utgifter";
+    labelEl.textContent = "Du är skyldig";
+    belEl.textContent = Math.abs(saldoMig).toFixed(2).replace(".",",") + " kr";
+    txtEl.textContent = totaltTxt;
   }
 
   const lista = document.getElementById("historik-lista");
@@ -302,17 +349,22 @@ function uppdatera() {
     return;
   }
   lista.innerHTML = utgifter.map(u => {
-    const betalareNamn = u.betalare_id === "p1" ? person1 : person2;
-    const badgeKlass = u.betalare_id === "p1" ? "p1" : "p2";
-    const delP1 = u.fordelning?.p1 || 0;
-    const delP2 = u.fordelning?.p2 || 0;
+    const betalare = personer.find(p => p.id === u.betalare_id);
+    const betalareNamn = betalare?.namn || u.betalare_id;
+    const badgeKlass = u.betalare_id === migId ? "p1" : "p2";
+    const fordelningText = Object.entries(u.fordelning || {})
+      .filter(([, andel]) => andel > 0)
+      .map(([id, andel]) => {
+        const p = personer.find(x => x.id === id);
+        return esc(p?.namn || id) + ": " + andel.toFixed(2).replace(".",",") + "\u00a0kr";
+      }).join(" &nbsp;·&nbsp; ");
     return `
       <div class="utgift-rad" onclick="oppnaEdit(${u.id})">
         <div class="utgift-info">
           <div class="utgift-beskrivning">${esc(u.beskrivning)}</div>
           <div class="utgift-meta">
             ${u.datum}<br>
-            ${esc(person1)}: ${delP1.toFixed(2).replace(".",",")} kr &nbsp;·&nbsp; ${esc(person2)}: ${delP2.toFixed(2).replace(".",",")} kr
+            ${fordelningText}
           </div>
           <span class="betald-badge ${badgeKlass}">Betalt av ${esc(betalareNamn)}</span>
         </div>
@@ -326,14 +378,73 @@ function uppdatera() {
 
 function esc(s) { return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
-function visaRegleraModal() {
-  const saldoMig = raknaUtSaldo(utgifter, personer)[migId] || 0;
-  let txt = "Nollställer saldot och arkiverar alla utgifter.";
-  if (Math.abs(saldoMig) >= 0.01) {
-    const vem = saldoMig > 0 ? person2 + " betalar " + person1 : person1 + " betalar " + person2;
-    txt = vem + " " + Math.abs(saldoMig).toFixed(2).replace(".",",") + " kr för att reglera. Bekräfta?";
+function visaSaldoDetalj() {
+  const lista = document.getElementById("saldo-detalj-lista");
+
+  // Ditt saldo — par som involverar mig
+  const mittSaldo = raknaParSaldon(utgifter, migId, personer);
+  const mittHtml = mittSaldo.map(({ id, netto }) => {
+    const namn = esc(personer.find(p => p.id === id)?.namn || id);
+    if (Math.abs(netto) < 0.01) {
+      return `<div class="saldo-detalj-rad noll"><strong>${namn}</strong>: jämnt</div>`;
+    } else if (netto > 0) {
+      return `<div class="saldo-detalj-rad"><strong>${namn}</strong> skall betala dig <strong>${netto.toFixed(2).replace(".",",")} kr</strong></div>`;
+    } else {
+      return `<div class="saldo-detalj-rad">Du är skyldig <strong>${namn}</strong> <strong>${Math.abs(netto).toFixed(2).replace(".",",")} kr</strong></div>`;
+    }
+  }).join("");
+
+  // Övriga — skulder mellan andra deltagare (inte mig)
+  // Iterera varje icke-mig-person och ta par där motparten också är icke-mig och netto > 0
+  // (netto > 0 = motparten är skyldig den itererade personen → visas en gång, deduplicerat)
+  const ovrigaRader = [];
+  for (const p of personer) {
+    if (p.id === migId) continue;
+    for (const { id: annarsId, netto } of raknaParSaldon(utgifter, p.id, personer)) {
+      if (annarsId === migId) continue;
+      if (netto > 0.01) {
+        const betalarNamn = esc(personer.find(x => x.id === annarsId)?.namn || annarsId);
+        const mottagarNamn = esc(p.namn);
+        const belopp = netto.toFixed(2).replace(".",",");
+        ovrigaRader.push(`<div class="saldo-detalj-rad"><strong>${betalarNamn}</strong> skall betala <strong>${mottagarNamn}</strong> <strong>${belopp} kr</strong></div>`);
+      }
+    }
   }
-  document.getElementById("reglera-text").textContent = txt;
+
+  let html = "";
+  if (mittHtml) {
+    const rubrik = personer.length > 2 ? '<div class="saldo-detalj-sektion-rubrik">Ditt saldo</div>' : "";
+    html += `<div class="saldo-detalj-sektion">${rubrik}${mittHtml}</div>`;
+  }
+  if (ovrigaRader.length > 0) {
+    html += `<div class="saldo-detalj-sektion"><div class="saldo-detalj-sektion-rubrik">Övriga</div>${ovrigaRader.join("")}</div>`;
+  }
+
+  lista.innerHTML = html;
+  document.getElementById("saldo-detalj-modal").classList.add("visa");
+}
+
+function visaRegleraModal() {
+  const parSaldon = raknaParSaldon(utgifter, migId, personer);
+  const saldoMig = raknaUtSaldo(utgifter, personer)[migId] || 0;
+
+  let html;
+  if (Math.abs(saldoMig) < 0.01) {
+    html = "Nollställer saldot och arkiverar alla utgifter.";
+  } else {
+    const rader = parSaldon
+      .filter(({ netto }) => Math.abs(netto) >= 0.01)
+      .map(({ id, netto }) => {
+        const annan = personer.find(p => p.id === id);
+        const namn = esc(annan?.namn || id);
+        const belopp = Math.abs(netto).toFixed(2).replace(".",",");
+        return netto > 0
+          ? `<strong>${namn}</strong> betalar dig <strong>${belopp} kr</strong>`
+          : `Du betalar <strong>${namn}</strong> <strong>${belopp} kr</strong>`;
+      });
+    html = rader.join("<br>") + "<br><br>Bekräfta för att reglera?";
+  }
+  document.getElementById("reglera-text").innerHTML = html;
   document.getElementById("reglera-modal").classList.add("visa");
 }
 function stangModal(id) { document.getElementById(id).classList.remove("visa"); }

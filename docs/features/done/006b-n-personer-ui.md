@@ -1,6 +1,6 @@
 # 006b – N>2 personer i UI
 
-**Status:** open
+**Status:** done
 **Skapad:** 2026-04-19
 **Del av:** 006 (multi-person i lokalt läge), slutsteg.
 **Beroende:** 006a (datamodell + `logic.js`). Rekommenderat: 006c (saldo-UI)

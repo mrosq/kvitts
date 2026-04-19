@@ -49,12 +49,20 @@
   .saldo-kort {
     background: var(--ink); color: #fff; border-radius: var(--radius);
     padding: 1.4rem 1.4rem 1.2rem; margin-bottom: 1.2rem;
+    cursor: pointer; transition: filter 0.15s;
   }
+  .saldo-kort:hover { filter: brightness(1.1); }
+  .saldo-kort:active { filter: brightness(0.92); }
   .saldo-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.6; }
-  .saldo-belopp { font-family: 'DM Serif Display', serif; font-size: 2.8rem; margin: 0.2rem 0; }
-  .saldo-text { font-size: 0.9rem; opacity: 0.7; }
-  .saldo-totalt { font-size: 0.78rem; opacity: 0.45; margin-top: 0.5rem; }
+  .saldo-belopp { font-family: 'DM Serif Display', serif; font-size: 1.8rem; margin: 0.2rem 0; }
+  .saldo-text { font-size: 0.78rem; opacity: 0.45; margin-top: 0.3rem; }
   .saldo-kort.noll { background: var(--green); }
+  .saldo-detalj-rad { padding: 0.7rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; line-height: 1.5; }
+  .saldo-detalj-rad:last-child { border-bottom: none; }
+  .saldo-detalj-rad.noll { color: var(--muted); }
+  .saldo-detalj-sektion { margin-bottom: 1.2rem; }
+  .saldo-detalj-sektion:last-child { margin-bottom: 0; }
+  .saldo-detalj-sektion-rubrik { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.2rem; }
 
   .btn-reglera {
     width: 100%; padding: 0.8rem; background: transparent; border: 2px solid var(--border);
@@ -94,8 +102,15 @@
     font-family: 'DM Sans', sans-serif; font-size: 0.85rem; cursor: pointer; color: var(--muted);
   }
   .split-toggle button.aktiv { background: var(--ink); color: #fff; }
-  .split-inputs { display: flex; gap: 0.5rem; width: 100%; margin-top: 0.4rem; }
-  .split-person { flex: 1; }
+  .split-inputs { display: flex; flex-direction: column; gap: 0.5rem; width: 100%; margin-top: 0.4rem; }
+  .split-person { width: 100%; }
+  .btn-lagg-till-person {
+    background: none; border: 1.5px solid var(--border); border-radius: 8px;
+    color: var(--muted); font-size: 0.85rem; padding: 0.45rem 0.9rem; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; margin-top: 0.3rem; align-self: flex-start;
+  }
+  .btn-lagg-till-person:hover { border-color: var(--ink); color: var(--ink); }
+  .btn-lagg-till-person:disabled { opacity: 0.35; cursor: not-allowed; }
   .split-person label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.2rem; }
   .egna-info { font-size: 0.78rem; color: var(--muted); margin-top: 0.4rem; font-style: italic; }
 
@@ -199,9 +214,9 @@
 <div id="intro-3a" class="intro-skarm" style="display:none">
   <h1>Kvitts</h1>
   <p id="intro-3a-text">Vem delar du utgifter med?</p>
-  <input class="setup-input" id="setup-namn" type="text" placeholder="T.ex. Anna, Sara, Jonas..."
-    onkeydown="if(event.key==='Enter') sparaSetup()"/>
-  <button class="btn-primary" onclick="sparaSetup()">Kom igång →</button>
+  <div id="setup-namn-lista" style="width:100%; display:flex; flex-direction:column; gap:0.5rem;"></div>
+  <button class="btn-lagg-till-person" id="btn-lagg-till-person" onclick="laggTillPersonFalt()">+ Lägg till person</button>
+  <button class="btn-primary" id="btn-kom-igang" onclick="sparaSetup()" disabled>Kom igång →</button>
   <button class="btn-text" onclick="visaSkarm2()">← Tillbaka</button>
   <button class="btn-text" onclick="document.getElementById('ladda-input').click()">eller ladda en sparad fil</button>
 </div>
@@ -217,11 +232,10 @@
   <h1>Kvitts</h1>
   <p class="subtitle" id="app-subtitle"></p>
 
-  <div class="saldo-kort" id="saldo-kort">
-    <div class="saldo-label">Aktuellt saldo</div>
+  <div class="saldo-kort" id="saldo-kort" onclick="visaSaldoDetalj()">
+    <div class="saldo-label" id="saldo-label">Aktuellt saldo</div>
     <div class="saldo-belopp" id="saldo-belopp">0 kr</div>
     <div class="saldo-text" id="saldo-text"></div>
-    <div class="saldo-totalt" id="saldo-totalt"></div>
   </div>
   <button class="btn-reglera" onclick="visaRegleraModal()">✓ Markera som reglerat</button>
 
@@ -232,10 +246,7 @@
     </div>
     <div class="form-rad">
       <input type="number" id="belopp" placeholder="Belopp (kr)" min="0" step="0.01" style="flex:1; min-width:0;"/>
-      <select id="betalare" style="flex:1; min-width:0;">
-        <option value="p1" id="p1-option">Person 1</option>
-        <option value="p2" id="p2-option">Person 2</option>
-      </select>
+      <select id="betalare" style="flex:1; min-width:0;"></select>
     </div>
     <div class="datum-rad">
       <button class="datum-pil" onclick="andradatum(-1)">&#8249;</button>
@@ -250,16 +261,7 @@
       </div>
     </div>
     <div id="split-inputs-wrapper" style="display:none; margin-bottom:0.7rem;">
-      <div class="split-inputs">
-        <div class="split-person">
-          <label id="split-p1-label">Person 1s egna (kr)</label>
-          <input type="number" id="split-p1" placeholder="0" min="0" step="0.01" oninput="uppdateraEgnaInfo()"/>
-        </div>
-        <div class="split-person">
-          <label id="split-p2-label">Persons egna (kr)</label>
-          <input type="number" id="split-p2" placeholder="0" min="0" step="0.01" oninput="uppdateraEgnaInfo()"/>
-        </div>
-      </div>
+      <div class="split-inputs" id="split-inputs-container"></div>
       <div class="egna-info" id="egna-info"></div>
     </div>
     <button class="btn-lagg-till" onclick="laggTillUtgift()">+ Lägg till</button>
@@ -273,6 +275,17 @@
   <div class="btn-grupp">
     <button class="btn-export" onclick="document.getElementById('ladda-input').click()">⬆ Ladda fil</button>
     <button class="btn-export" onclick="sparaFil()" id="spara-fil-btn" style="display:none">⬇ Spara fil</button>
+  </div>
+</div>
+
+<!-- SALDO DETALJ MODAL -->
+<div class="modal-overlay" id="saldo-detalj-modal">
+  <div class="modal">
+    <h2>Saldo</h2>
+    <div id="saldo-detalj-lista"></div>
+    <div class="modal-knappar">
+      <button class="btn-avbryt" style="flex:none; width:100%;" onclick="stangModal('saldo-detalj-modal')">Stäng</button>
+    </div>
   </div>
 </div>
 
@@ -295,10 +308,7 @@
     <div class="modal-sub" id="edit-rubrik"></div>
     <div class="form-rad">
       <input type="number" id="edit-belopp" placeholder="Belopp (kr)" min="0" step="0.01" style="flex:1; min-width:0;"/>
-      <select id="edit-betalare" style="flex:1; min-width:0;">
-        <option value="p1" id="edit-p1-option">Person 1</option>
-        <option value="p2" id="edit-p2-option">Person 2</option>
-      </select>
+      <select id="edit-betalare" style="flex:1; min-width:0;"></select>
     </div>
     <div class="split-rad">
       <div class="split-label">Hur delas utgiften?</div>
@@ -308,16 +318,7 @@
       </div>
     </div>
     <div id="edit-split-inputs-wrapper" style="display:none; margin-bottom:0.7rem;">
-      <div class="split-inputs">
-        <div class="split-person">
-          <label id="edit-split-p1-label">Person 1s egna (kr)</label>
-          <input type="number" id="edit-split-p1" placeholder="0" min="0" step="0.01" oninput="uppdateraEditEgnaInfo()"/>
-        </div>
-        <div class="split-person">
-          <label id="edit-split-p2-label">Persons egna (kr)</label>
-          <input type="number" id="edit-split-p2" placeholder="0" min="0" step="0.01" oninput="uppdateraEditEgnaInfo()"/>
-        </div>
-      </div>
+      <div class="split-inputs" id="edit-split-inputs-container"></div>
       <div class="egna-info" id="edit-egna-info"></div>
     </div>
     <div class="modal-knappar">
