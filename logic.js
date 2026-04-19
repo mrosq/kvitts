@@ -1,7 +1,4 @@
-// Extracted pure logic functions from index.html for testability.
-// These mirror the functions in <script> except raknaDel, which takes numeric
-// values directly instead of DOM element IDs (to decouple from the DOM).
-// Any fix here must be synced back.
+// Pure logic functions shared by app.js (browser) and logic.test.js (Node).
 
 /**
  * Calculate each person's share of an expense.
@@ -61,4 +58,4 @@ function egnaInfoText(bel, egnaP1, egnaP2) {
   );
 }
 
-module.exports = { raknaDel, raknaUtSaldo, egnaInfoText };
+if (typeof module !== "undefined") module.exports = { raknaDel, raknaUtSaldo, egnaInfoText };

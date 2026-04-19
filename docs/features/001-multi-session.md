@@ -42,7 +42,7 @@ kvitts_session_<id>   → { person2, utgifter: [...] }
 kvitts_aktiv          → <id>
 ```
 
-Migrera från gammal struktur (`splitwise_person2` + `splitwise_utgifter`) vid
+Migrera från gammal struktur (`kvitts_person2` + `kvitts_utgifter`) vid
 första uppstart efter feature-deploy: skapa en session med defaultnamn
 ("Min lista" eller liknande), flytta in datan, ta bort de gamla nycklarna.
 

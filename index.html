@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="sv">
 <head>
 <meta charset="UTF-8"/>
@@ -19,16 +18,16 @@
   h1 { font-family: 'DM Serif Display', serif; font-size: 2rem; letter-spacing: -0.02em; margin-bottom: 0.2rem; }
   .subtitle { color: var(--muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
 
-  #setup-screen {
+  .intro-skarm {
     display: flex; flex-direction: column; align-items: center;
     justify-content: center; min-height: 80vh; gap: 1rem; text-align: center;
   }
-  #setup-screen h1 { font-size: 2.4rem; }
-  #setup-screen p { color: var(--muted); max-width: 280px; line-height: 1.5; }
+  .intro-skarm h1 { font-size: 2.4rem; }
+  .intro-skarm > p { color: var(--muted); max-width: 280px; line-height: 1.5; }
   .setup-input {
     width: 100%; padding: 0.9rem 1rem; border: 2px solid var(--border);
     border-radius: var(--radius); font-size: 1rem; font-family: 'DM Sans', sans-serif;
-    background: var(--card); outline: none; transition: border-color 0.2s;
+    background: var(--card); outline: none; transition: border-color 0.2s; flex: none; height: auto;
   }
   .setup-input:focus { border-color: var(--accent); }
   .btn-primary {
@@ -36,6 +35,16 @@
     border: none; border-radius: var(--radius); font-size: 1rem;
     font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer;
   }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .lagesval-knappar { display: flex; flex-direction: column; gap: 0.8rem; width: 100%; }
+  .lagesval-kort {
+    background: var(--card); border: 2px solid var(--border); border-radius: var(--radius);
+    padding: 1.1rem 1.2rem; text-align: left; width: 100%; cursor: pointer;
+    transition: border-color 0.2s; font-family: 'DM Sans', sans-serif;
+  }
+  .lagesval-kort:hover { border-color: var(--ink); }
+  .lagesval-kort strong { display: block; font-size: 0.95rem; font-weight: 500; color: var(--ink); margin-bottom: 0.3rem; }
+  .lagesval-kort span { font-size: 0.82rem; color: var(--muted); line-height: 1.4; display: block; }
 
   .saldo-kort {
     background: var(--ink); color: #fff; border-radius: var(--radius);
@@ -63,6 +72,7 @@
     color: var(--ink); outline: none; transition: border-color 0.2s;
   }
   input:focus, select:focus { border-color: var(--accent); }
+  input.setup-input { flex: none; height: auto; }
 
   .datum-rad {
     display: flex; align-items: center; justify-content: space-between;
@@ -160,14 +170,48 @@
 </head>
 <body>
 
-<div id="setup-screen">
+<input type="file" id="ladda-input" accept=".json,application/json" style="display:none" onchange="laddaFil(event)"/>
+
+<div id="intro-1" class="intro-skarm" style="display:none">
+  <h1>Välkommen till Kvitts</h1>
+  <p>Håll koll på utgifter och dela rättvist med en vän. Inget konto behövs.</p>
+  <input class="setup-input" id="intro-person1-namn" type="text" maxlength="20" placeholder="Ditt namn..."
+    oninput="document.getElementById('btn-nasta-1').disabled = !this.value.trim()"
+    onkeydown="if(event.key==='Enter' && this.value.trim()) sparaOchGaTillSkarm2()"/>
+  <button class="btn-primary" id="btn-nasta-1" onclick="sparaOchGaTillSkarm2()" disabled>Nästa →</button>
+</div>
+
+<div id="intro-2" class="intro-skarm" style="display:none">
   <h1>Kvitts</h1>
-  <p>Ange namnet på den andra personen du delar utgifter med.</p>
-  <input class="setup-input" id="setup-namn" type="text" placeholder="T.ex. Anna, Sara, Jonas..."/>
+  <p>Hur vill du använda appen?</p>
+  <div class="lagesval-knappar">
+    <button class="lagesval-kort" onclick="visaSkarm3a()">
+      <strong>Jag håller reda på allas utgifter</strong>
+      <span>Du lägger in alla utgifter på din enhet. Inget konto behövs.</span>
+    </button>
+    <button class="lagesval-kort" onclick="visaSkarm3b()">
+      <strong>Vi lägger in utgifter var för sig</strong>
+      <span>Varje person lägger in sina egna utgifter på sin egen telefon.</span>
+    </button>
+  </div>
+</div>
+
+<div id="intro-3a" class="intro-skarm" style="display:none">
+  <h1>Kvitts</h1>
+  <p id="intro-3a-text">Vem delar du utgifter med?</p>
+  <input class="setup-input" id="setup-namn" type="text" placeholder="T.ex. Anna, Sara, Jonas..."
+    onkeydown="if(event.key==='Enter') sparaSetup()"/>
   <button class="btn-primary" onclick="sparaSetup()">Kom igång →</button>
+  <button class="btn-text" onclick="visaSkarm2()">← Tillbaka</button>
   <button class="btn-text" onclick="document.getElementById('ladda-input').click()">eller ladda en sparad fil</button>
 </div>
-<input type="file" id="ladda-input" accept=".json,application/json" style="display:none" onchange="laddaFil(event)"/>
+
+<div id="intro-3b" class="intro-skarm" style="display:none">
+  <h1>Kvitts</h1>
+  <p>Det här läget finns inte än.</p>
+  <p style="max-width:280px; line-height:1.5; font-size:0.85rem">Att varje person håller sin egen lista ligger på vår roadmap — men är inte byggt än. Välj det andra alternativet för att komma igång nu.</p>
+  <button class="btn-primary" onclick="visaSkarm2()">← Tillbaka</button>
+</div>
 
 <div id="app" style="display:none">
   <h1>Kvitts</h1>
@@ -189,7 +233,7 @@
     <div class="form-rad">
       <input type="number" id="belopp" placeholder="Belopp (kr)" min="0" step="0.01" style="flex:1; min-width:0;"/>
       <select id="betalare" style="flex:1; min-width:0;">
-        <option value="p1">Mikael</option>
+        <option value="p1" id="p1-option">Person 1</option>
         <option value="p2" id="p2-option">Person 2</option>
       </select>
     </div>
@@ -208,7 +252,7 @@
     <div id="split-inputs-wrapper" style="display:none; margin-bottom:0.7rem;">
       <div class="split-inputs">
         <div class="split-person">
-          <label>Mikaels egna (kr)</label>
+          <label id="split-p1-label">Person 1s egna (kr)</label>
           <input type="number" id="split-p1" placeholder="0" min="0" step="0.01" oninput="uppdateraEgnaInfo()"/>
         </div>
         <div class="split-person">
@@ -252,7 +296,7 @@
     <div class="form-rad">
       <input type="number" id="edit-belopp" placeholder="Belopp (kr)" min="0" step="0.01" style="flex:1; min-width:0;"/>
       <select id="edit-betalare" style="flex:1; min-width:0;">
-        <option value="p1">Mikael</option>
+        <option value="p1" id="edit-p1-option">Person 1</option>
         <option value="p2" id="edit-p2-option">Person 2</option>
       </select>
     </div>
@@ -266,7 +310,7 @@
     <div id="edit-split-inputs-wrapper" style="display:none; margin-bottom:0.7rem;">
       <div class="split-inputs">
         <div class="split-person">
-          <label>Mikaels egna (kr)</label>
+          <label id="edit-split-p1-label">Person 1s egna (kr)</label>
           <input type="number" id="edit-split-p1" placeholder="0" min="0" step="0.01" oninput="uppdateraEditEgnaInfo()"/>
         </div>
         <div class="split-person">
@@ -284,312 +328,7 @@
   </div>
 </div>
 
-<script>
-  let person2 = "";
-  let splitTyp = "50";
-  let editSplitTyp = "50";
-  let utgifter = [];
-  let valtDatum = new Date();
-  let editId = null;
-
-  // DATUM
-  function datumTillStr(d) { return d.toLocaleDateString("sv-SE"); }
-  function datumVisText(d) {
-    const idag = new Date(); idag.setHours(0,0,0,0);
-    const igår = new Date(idag); igår.setDate(igår.getDate()-1);
-    const imorgon = new Date(idag); imorgon.setDate(imorgon.getDate()+1);
-    const jmf = new Date(d); jmf.setHours(0,0,0,0);
-    if (jmf.getTime() === idag.getTime()) return "Idag · " + datumTillStr(d);
-    if (jmf.getTime() === igår.getTime()) return "Igår · " + datumTillStr(d);
-    if (jmf.getTime() === imorgon.getTime()) return "Imorgon · " + datumTillStr(d);
-    return datumTillStr(d);
-  }
-  function andradatum(steg) {
-    valtDatum = new Date(valtDatum);
-    valtDatum.setDate(valtDatum.getDate() + steg);
-    document.getElementById("datum-text").textContent = datumVisText(valtDatum);
-  }
-  function resetDatum() {
-    valtDatum = new Date();
-    document.getElementById("datum-text").textContent = datumVisText(valtDatum);
-  }
-
-  // INIT
-  function init() {
-    const sparad = localStorage.getItem("splitwise_person2");
-    if (sparad) {
-      person2 = sparad;
-      utgifter = JSON.parse(localStorage.getItem("splitwise_utgifter") || "[]");
-      visaApp();
-    }
-  }
-  function sparaSetup() {
-    const v = document.getElementById("setup-namn").value.trim();
-    if (!v) return;
-    person2 = v;
-    localStorage.setItem("splitwise_person2", person2);
-    utgifter = [];
-    visaApp();
-  }
-  function visaApp() {
-    document.getElementById("setup-screen").style.display = "none";
-    document.getElementById("app").style.display = "block";
-    document.getElementById("app-subtitle").textContent = "Mikael & " + person2;
-    document.getElementById("p2-option").textContent = person2;
-    document.getElementById("split-p2-label").textContent = person2 + "s egna (kr)";
-    document.getElementById("edit-p2-option").textContent = person2;
-    document.getElementById("edit-split-p2-label").textContent = person2 + "s egna (kr)";
-    resetDatum();
-    uppdatera();
-    document.getElementById("spara-fil-btn").style.display = utgifter.length > 0 ? "block" : "none";
-  }
-
-  // SPLIT-TYP
-  function setSplitTyp(typ) {
-    splitTyp = typ;
-    document.getElementById("toggle-50").classList.toggle("aktiv", typ === "50");
-    document.getElementById("toggle-egna").classList.toggle("aktiv", typ === "egna");
-    document.getElementById("split-inputs-wrapper").style.display = typ === "egna" ? "block" : "none";
-    if (typ === "egna") uppdateraEgnaInfo();
-  }
-  function setEditSplitTyp(typ) {
-    editSplitTyp = typ;
-    document.getElementById("edit-toggle-50").classList.toggle("aktiv", typ === "50");
-    document.getElementById("edit-toggle-egna").classList.toggle("aktiv", typ === "egna");
-    document.getElementById("edit-split-inputs-wrapper").style.display = typ === "egna" ? "block" : "none";
-    if (typ === "egna") uppdateraEditEgnaInfo();
-  }
-
-  // EGNA-INFO (live preview)
-  function egnaInfoText(bel, egnaP1, egnaP2) {
-    const kvar = bel - egnaP1 - egnaP2;
-    if (isNaN(bel) || bel <= 0) return "";
-    if (kvar < -0.001) return "⚠️ Egna kostnader (" + (egnaP1+egnaP2).toFixed(2).replace(".",",") + " kr) överstiger totalt (" + bel.toFixed(2).replace(".",",") + " kr)";
-    const delat = kvar / 2;
-    return "Delas: " + kvar.toFixed(2).replace(".",",") + " kr ÷ 2 = " + delat.toFixed(2).replace(".",",") + " kr var";
-  }
-  function uppdateraEgnaInfo() {
-    const bel = parseFloat(document.getElementById("belopp").value) || 0;
-    const e1 = parseFloat(document.getElementById("split-p1").value) || 0;
-    const e2 = parseFloat(document.getElementById("split-p2").value) || 0;
-    document.getElementById("egna-info").textContent = egnaInfoText(bel, e1, e2);
-  }
-  function uppdateraEditEgnaInfo() {
-    const bel = parseFloat(document.getElementById("edit-belopp").value) || 0;
-    const e1 = parseFloat(document.getElementById("edit-split-p1").value) || 0;
-    const e2 = parseFloat(document.getElementById("edit-split-p2").value) || 0;
-    document.getElementById("edit-egna-info").textContent = egnaInfoText(bel, e1, e2);
-  }
-
-  // BERÄKNA ANDELAR
-  // delP1 = vad Mikael ska betala totalt, delP2 = vad person2 ska betala totalt
-  function raknaDel(bel, typ, idP1, idP2) {
-    if (typ === "50") return { delP1: bel/2, delP2: bel/2 };
-    const egnaP1 = parseFloat(document.getElementById(idP1).value) || 0;
-    const egnaP2 = parseFloat(document.getElementById(idP2).value) || 0;
-    const kvar = bel - egnaP1 - egnaP2;
-    if (kvar < -0.001) return null; // ogiltig
-    const delat = kvar / 2;
-    return { delP1: egnaP1 + delat, delP2: egnaP2 + delat };
-  }
-
-  // LÄGG TILL
-  function laggTillUtgift() {
-    const besk = document.getElementById("beskrivning").value.trim();
-    const bel = parseFloat(document.getElementById("belopp").value);
-    const betalare = document.getElementById("betalare").value;
-    if (!besk || isNaN(bel) || bel <= 0) { alert("Fyll i beskrivning och belopp."); return; }
-    const result = raknaDel(bel, splitTyp, "split-p1", "split-p2");
-    if (!result) { alert("Egna kostnader överstiger totalt belopp."); return; }
-    const {delP1, delP2} = result;
-    utgifter.unshift({ id: Date.now(), beskrivning: besk, belopp: bel, betalare, delP1, delP2, datum: datumTillStr(valtDatum) });
-    spara();
-    document.getElementById("beskrivning").value = "";
-    document.getElementById("belopp").value = "";
-    document.getElementById("split-p1").value = "";
-    document.getElementById("split-p2").value = "";
-    document.getElementById("egna-info").textContent = "";
-    setSplitTyp("50");
-    resetDatum();
-    uppdatera();
-  }
-
-  // EDIT - öppna
-  function oppnaEdit(id) {
-    const u = utgifter.find(x => x.id === id);
-    if (!u) return;
-    editId = id;
-    document.getElementById("edit-rubrik").textContent = u.beskrivning + "  ·  " + u.datum;
-    document.getElementById("edit-belopp").value = u.belopp;
-    document.getElementById("edit-betalare").value = u.betalare;
-    // Detektera om det är 50/50 eller egna
-    const ar5050 = Math.abs(u.delP1 - u.delP2) < 0.001 && Math.abs(u.delP1 - u.belopp/2) < 0.001;
-    if (ar5050) {
-      setEditSplitTyp("50");
-      document.getElementById("edit-split-p1").value = "";
-      document.getElementById("edit-split-p2").value = "";
-    } else {
-      // Räkna tillbaka egna från delP1/delP2:
-      // delP1 = egnaP1 + (bel-egnaP1-egnaP2)/2  =>  egnaP1 = delP1 - (bel-egnaP1-egnaP2)/2
-      // Enklast: spara egna separat. Men för gamla poster: visa delP1/delP2 direkt i egna-fälten
-      // och sätt delat=0 (dvs egnaP1=delP1, egnaP2=delP2)
-      setEditSplitTyp("egna");
-      // Försök rekonstruera: kvar = bel - egnaP1 - egnaP2, delat = kvar/2
-      // delP1 = egnaP1 + delat, delP2 = egnaP2 + delat
-      // delP1 + delP2 = egnaP1 + egnaP2 + kvar = egnaP1 + egnaP2 + bel - egnaP1 - egnaP2 = bel ✓
-      // delP1 - delP2 = egnaP1 - egnaP2  =>  egnaP1 - egnaP2 = delP1 - delP2
-      // Och: egnaP1 + egnaP2 = bel - kvar. Men vi don't know kvar separately.
-      // Enklaste: visa 0 i egna och låt användaren justera, ELLER lagra egna i datat.
-      // Här visar vi de sparade delP1/delP2 minus hälften som "egna" (approximation för gamla poster)
-      const halvt = u.belopp / 2;
-      const egnaP1 = Math.max(0, u.delP1 - halvt + (u.delP2 - halvt));
-      // Säkrare: lagra egna i ny post. För gamla: visa 0 och låt delP1/delP2 synas i info
-      document.getElementById("edit-split-p1").value = "";
-      document.getElementById("edit-split-p2").value = "";
-      uppdateraEditEgnaInfo();
-    }
-    document.getElementById("edit-modal").classList.add("visa");
-  }
-
-  // EDIT - spara
-  function sparaEdit() {
-    const bel = parseFloat(document.getElementById("edit-belopp").value);
-    const betalare = document.getElementById("edit-betalare").value;
-    if (isNaN(bel) || bel <= 0) { alert("Ange ett giltigt belopp."); return; }
-    const result = raknaDel(bel, editSplitTyp, "edit-split-p1", "edit-split-p2");
-    if (!result) { alert("Egna kostnader överstiger totalt belopp."); return; }
-    const {delP1, delP2} = result;
-    const idx = utgifter.findIndex(x => x.id === editId);
-    if (idx !== -1) {
-      utgifter[idx] = { ...utgifter[idx], belopp: bel, betalare, delP1, delP2 };
-    }
-    spara();
-    uppdatera();
-    stangModal("edit-modal");
-  }
-
-  function raderaUtgift() {
-    if (!confirm("Ta bort utgiften?")) return;
-    utgifter = utgifter.filter(x => x.id !== editId);
-    spara();
-    uppdatera();
-    stangModal("edit-modal");
-  }
-
-  // SALDO: positiv = p2 skyldig Mikael, negativ = Mikael skyldig p2
-  function raknaUtSaldo() {
-    let saldo = 0;
-    for (const u of utgifter) saldo += u.betalare === "p1" ? u.delP2 : -u.delP1;
-    return saldo;
-  }
-
-  function uppdatera() {
-    const saldo = raknaUtSaldo();
-    const totalt = utgifter.reduce((s, u) => s + u.belopp, 0);
-    const kortEl = document.getElementById("saldo-kort");
-    const belEl = document.getElementById("saldo-belopp");
-    const txtEl = document.getElementById("saldo-text");
-    const totaltEl = document.getElementById("saldo-totalt");
-
-    belEl.textContent = Math.abs(saldo).toFixed(2).replace(".",",") + " kr";
-    if (Math.abs(saldo) < 0.01) {
-      kortEl.className = "saldo-kort noll";
-      txtEl.textContent = "Ni är quitt! 🎉";
-      totaltEl.textContent = totalt > 0 ? "Totalt " + totalt.toFixed(2).replace(".",",") + " kr i utgifter" : "";
-    } else if (saldo > 0) {
-      kortEl.className = "saldo-kort";
-      txtEl.textContent = person2 + " är skyldig Mikael";
-      totaltEl.textContent = "av totalt " + totalt.toFixed(2).replace(".",",") + " kr i utgifter";
-    } else {
-      kortEl.className = "saldo-kort";
-      txtEl.textContent = "Mikael är skyldig " + person2;
-      totaltEl.textContent = "av totalt " + totalt.toFixed(2).replace(".",",") + " kr i utgifter";
-    }
-
-    const lista = document.getElementById("historik-lista");
-    if (utgifter.length === 0) {
-      lista.innerHTML = '<div class="tom-historik">Inga utgifter ännu.</div>';
-      return;
-    }
-    lista.innerHTML = utgifter.map(u => {
-      const betalareNamn = u.betalare === "p1" ? "Mikael" : person2;
-      const badgeKlass = u.betalare === "p1" ? "p1" : "p2";
-      return `
-        <div class="utgift-rad" onclick="oppnaEdit(${u.id})">
-          <div class="utgift-info">
-            <div class="utgift-beskrivning">${esc(u.beskrivning)}</div>
-            <div class="utgift-meta">
-              ${u.datum}<br>
-              Mikael: ${u.delP1.toFixed(2).replace(".",",")} kr &nbsp;·&nbsp; ${esc(person2)}: ${u.delP2.toFixed(2).replace(".",",")} kr
-            </div>
-            <span class="betald-badge ${badgeKlass}">Betalt av ${esc(betalareNamn)}</span>
-          </div>
-          <div class="utgift-belopp">
-            <div class="utgift-totalt">${u.belopp.toFixed(2).replace(".",",")} kr</div>
-            <div class="edit-hint">tryck för att redigera</div>
-          </div>
-        </div>`;
-    }).join("");
-  }
-
-  function esc(s) { return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-
-  function visaRegleraModal() {
-    const saldo = raknaUtSaldo();
-    let txt = "Nollställer saldot och arkiverar alla utgifter.";
-    if (Math.abs(saldo) >= 0.01) {
-      const vem = saldo > 0 ? person2 + " betalar Mikael" : "Mikael betalar " + person2;
-      txt = vem + " " + Math.abs(saldo).toFixed(2).replace(".",",") + " kr för att reglera. Bekräfta?";
-    }
-    document.getElementById("reglera-text").textContent = txt;
-    document.getElementById("reglera-modal").classList.add("visa");
-  }
-  function stangModal(id) { document.getElementById(id).classList.remove("visa"); }
-  function reglera() { utgifter = []; spara(); uppdatera(); stangModal("reglera-modal"); }
-  function sparaFil() {
-    const data = { version: 1, exporterad: new Date().toISOString(), person2, utgifter };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "kvitts-" + new Date().toLocaleDateString("sv-SE") + ".json";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function laddaFil(event) {
-    const fil = event.target.files[0];
-    if (!fil) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = JSON.parse(e.target.result);
-        if (typeof data.person2 !== "string" || !Array.isArray(data.utgifter)) {
-          alert("Filen ser inte ut som en giltig Kvitts-fil.");
-          return;
-        }
-        if (utgifter.length > 0 && !confirm("Detta ersätter dina nuvarande utgifter. Fortsätt?")) {
-          return;
-        }
-        person2 = data.person2;
-        utgifter = data.utgifter;
-        localStorage.setItem("splitwise_person2", person2);
-        spara();
-        visaApp();
-      } catch (err) {
-        alert("Kunde inte läsa filen: " + err.message);
-      }
-    };
-    reader.readAsText(fil);
-    event.target.value = "";
-  }
-
-  function spara() {
-    localStorage.setItem("splitwise_utgifter", JSON.stringify(utgifter));
-    document.getElementById("spara-fil-btn").style.display = utgifter.length > 0 ? "block" : "none";
-  }
-
-  init();
-</script>
+<script src="logic.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

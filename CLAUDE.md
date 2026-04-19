@@ -22,19 +22,18 @@ Deployad på Vercel — varje push till `main` deployer automatiskt.
 - **Vanilla JS, single-file HTML.** Inget ramverk, inget byggsteg. Introducera inte React/Vue/build tools utan att det diskuterats — hela poängen är att `index.html` ska kunna öppnas som en fil.
 - **Svenska i UI, kommentarer och funktionsnamn.** `raknaDel`, `utgifter`, `betalare` osv. Behåll svenska när du lägger till kod.
 
-## Viktigt om kodstrukturen
+## Kodstruktur
 
-**`logic.js` är en duplicat av rena funktioner inne i `<script>`-taggen i `index.html`.** Anledningen: index.html:s versioner läser från DOM (`document.getElementById(...)`) och går inte att enhetstesta. `logic.js` är samma matematik fast frikopplad från DOM.
-
-→ **Om du ändrar en av `raknaDel`, `raknaUtSaldo` eller `egnaInfoText` i ena filen, ändra i båda.** Annars ljuger testerna om appens faktiska beteende.
-
-Planerad framtida förbättring: flytta `<script>` till extern `.js`-fil så att app och tester importerar samma kod. Görs när det blir aktuellt, inte förebyggande.
+- **`logic.js`** — rena beräkningsfunktioner (`raknaDel`, `raknaUtSaldo`, `egnaInfoText`). Exponeras globalt i browsern; `logic.test.js` importerar via `require`. Ingen DOM-access.
+- **`app.js`** — DOM-glue, event handlers, state, render-funktioner. Anropar `logic.js`-funktionerna direkt.
+- **`index.html`** — enbart markup + `<script src="logic.js">` + `<script src="app.js">`.
 
 ## Datamodell
 
-**localStorage-nycklar** (namnen är legacy — appen hette först "splitwise"):
-- `splitwise_person2` — sträng, den andra personens namn (Mikael är alltid person 1)
-- `splitwise_utgifter` — JSON-array av utgifts-objekt
+**localStorage-nycklar:**
+- `kvitts_person1` — sträng, den inloggade personens namn
+- `kvitts_person2` — sträng, den andra personens namn
+- `kvitts_utgifter` — JSON-array av utgifts-objekt
 
 **Utgifts-objekt:**
 ```js
@@ -42,14 +41,14 @@ Planerad framtida förbättring: flytta `<script>` till extern `.js`-fil så att
   id: 1234567890,        // Date.now()
   beskrivning: "Mat",
   belopp: 250,           // totalsumma i kr
-  betalare: "p1" | "p2", // p1 = Mikael, p2 = person2
-  delP1: 125,            // Mikaels andel av belopp
+  betalare: "p1" | "p2", // p1 = person1, p2 = person2
+  delP1: 125,            // person1:s andel av belopp
   delP2: 125,            // person2:s andel av belopp
   datum: "2026-04-18"    // toLocaleDateString("sv-SE")
 }
 ```
 
-**Saldo-konvention:** positivt saldo = person2 är skyldig Mikael. Negativt = tvärtom.
+**Saldo-konvention:** positivt saldo = person2 är skyldig person1. Negativt = tvärtom.
 
 ## Workflow & specs
 
