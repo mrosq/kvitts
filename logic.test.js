@@ -1,9 +1,15 @@
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
-const { raknaDel, raknaUtSaldo, egnaInfoText } = require("./logic");
+const {
+  raknaDel,
+  raknaUtSaldo,
+  raknaParSaldon,
+  egnaInfoText,
+  migreraUtgift,
+} = require("./logic");
 
 // ---------------------------------------------------------------------------
-// Helper: compare floating-point values with tolerance
+// Helpers
 // ---------------------------------------------------------------------------
 function assertClose(actual, expected, msg, tolerance = 0.001) {
   assert.ok(
@@ -12,328 +18,498 @@ function assertClose(actual, expected, msg, tolerance = 0.001) {
   );
 }
 
+const P2 = [{ id: "p1" }, { id: "p2" }];
+const P3 = [{ id: "p1" }, { id: "p2" }, { id: "p3" }];
+const DEL2 = ["p1", "p2"];
+const DEL3 = ["p1", "p2", "p3"];
+
 // ===========================================================================
-// raknaDel — split calculation
+// raknaDel — N-personers split
 // ===========================================================================
 describe("raknaDel", () => {
-  // --- 50/50 ---------------------------------------------------------------
-  describe("50/50 split", () => {
-    it("splits an even amount equally", () => {
-      const r = raknaDel(100, "50");
-      assert.equal(r.delP1, 50);
-      assert.equal(r.delP2, 50);
+  // --- jämnt (N=2, bevarar 2-personers-beteendet) ---------------------------
+  describe("jämnt, N=2", () => {
+    it("delar jämnt", () => {
+      const r = raknaDel(100, "jamnt", DEL2);
+      assert.equal(r.p1, 50);
+      assert.equal(r.p2, 50);
     });
 
-    it("splits an odd amount equally (with decimals)", () => {
-      const r = raknaDel(99, "50");
-      assert.equal(r.delP1, 49.5);
-      assert.equal(r.delP2, 49.5);
+    it("udda belopp med decimaler", () => {
+      const r = raknaDel(99, "jamnt", DEL2);
+      assert.equal(r.p1, 49.5);
+      assert.equal(r.p2, 49.5);
     });
 
-    it("handles small amounts", () => {
-      const r = raknaDel(1, "50");
-      assert.equal(r.delP1, 0.5);
-      assert.equal(r.delP2, 0.5);
+    it("små belopp", () => {
+      const r = raknaDel(1, "jamnt", DEL2);
+      assert.equal(r.p1, 0.5);
+      assert.equal(r.p2, 0.5);
     });
 
-    it("handles very large amounts", () => {
-      const r = raknaDel(999999.98, "50");
-      assertClose(r.delP1, 499999.99, "delP1");
-      assertClose(r.delP2, 499999.99, "delP2");
+    it("stora belopp", () => {
+      const r = raknaDel(999999.98, "jamnt", DEL2);
+      assertClose(r.p1, 499999.99, "p1");
+      assertClose(r.p2, 499999.99, "p2");
     });
 
-    it("splits zero amount", () => {
-      const r = raknaDel(0, "50");
-      assert.equal(r.delP1, 0);
-      assert.equal(r.delP2, 0);
+    it("noll", () => {
+      const r = raknaDel(0, "jamnt", DEL2);
+      assert.equal(r.p1, 0);
+      assert.equal(r.p2, 0);
     });
 
-    it("delP1 + delP2 always equals total", () => {
-      const amounts = [1, 3, 7.77, 100, 333.33, 0.01];
-      for (const bel of amounts) {
-        const r = raknaDel(bel, "50");
-        assertClose(r.delP1 + r.delP2, bel, `sum for ${bel}`);
+    it("summan = beloppet", () => {
+      for (const bel of [1, 3, 7.77, 100, 333.33, 0.01]) {
+        const r = raknaDel(bel, "jamnt", DEL2);
+        assertClose(r.p1 + r.p2, bel, `sum för ${bel}`);
       }
+    });
+
+    it("accepterar alias \"50\"", () => {
+      const r = raknaDel(100, "50", DEL2);
+      assert.equal(r.p1, 50);
+      assert.equal(r.p2, 50);
     });
   });
 
-  // --- Egna kostnader ------------------------------------------------------
-  describe("egna (custom split)", () => {
-    it("only personal costs, nothing shared", () => {
-      // Mikael 60kr egna, Person2 40kr egna, totalt 100
-      const r = raknaDel(100, "egna", 60, 40);
-      assert.equal(r.delP1, 60);
-      assert.equal(r.delP2, 40);
+  // --- jämnt (N=3) ---------------------------------------------------------
+  describe("jämnt, N=3", () => {
+    it("delar jämnt mellan 3", () => {
+      const r = raknaDel(300, "jamnt", DEL3);
+      assert.equal(r.p1, 100);
+      assert.equal(r.p2, 100);
+      assert.equal(r.p3, 100);
     });
 
-    it("all shared, no personal costs", () => {
-      // egna = 0/0 => hela beloppet delas 50/50
-      const r = raknaDel(200, "egna", 0, 0);
-      assert.equal(r.delP1, 100);
-      assert.equal(r.delP2, 100);
+    it("90/3 = 30", () => {
+      const r = raknaDel(90, "jamnt", DEL3);
+      assertClose(r.p1 + r.p2 + r.p3, 90, "summa");
+      assertClose(r.p1, 30, "p1");
     });
 
-    it("mix of personal and shared costs", () => {
-      // Totalt 100, Mikael egna 20, Person2 egna 10 => kvar = 70, delat = 35
-      // delP1 = 20+35 = 55, delP2 = 10+35 = 45
-      const r = raknaDel(100, "egna", 20, 10);
-      assertClose(r.delP1, 55, "delP1");
-      assertClose(r.delP2, 45, "delP2");
+    it("ojämn division ackumulerar", () => {
+      const r = raknaDel(100, "jamnt", DEL3);
+      assertClose(r.p1 + r.p2 + r.p3, 100, "summa");
+    });
+  });
+
+  // --- egna (N=2) ----------------------------------------------------------
+  describe("egna, N=2", () => {
+    it("bara egna, inget delat", () => {
+      const r = raknaDel(100, "egna", DEL2, { p1: 60, p2: 40 });
+      assert.equal(r.p1, 60);
+      assert.equal(r.p2, 40);
     });
 
-    it("delP1 + delP2 equals total amount", () => {
-      const r = raknaDel(150, "egna", 30, 20);
-      assertClose(r.delP1 + r.delP2, 150, "sum");
+    it("allt delat, inga egna", () => {
+      const r = raknaDel(200, "egna", DEL2, { p1: 0, p2: 0 });
+      assert.equal(r.p1, 100);
+      assert.equal(r.p2, 100);
     });
 
-    it("returns null when personal costs exceed total", () => {
-      const r = raknaDel(100, "egna", 60, 50);
+    it("mix av egna och delat", () => {
+      // bel=100, egna p1=20, p2=10 → kvar=70 → delat=35
+      // p1=20+35=55, p2=10+35=45
+      const r = raknaDel(100, "egna", DEL2, { p1: 20, p2: 10 });
+      assertClose(r.p1, 55, "p1");
+      assertClose(r.p2, 45, "p2");
+    });
+
+    it("summan = beloppet", () => {
+      const r = raknaDel(150, "egna", DEL2, { p1: 30, p2: 20 });
+      assertClose(r.p1 + r.p2, 150, "summa");
+    });
+
+    it("null när egna överstiger beloppet", () => {
+      const r = raknaDel(100, "egna", DEL2, { p1: 60, p2: 50 });
       assert.equal(r, null);
     });
 
-    it("allows personal costs exactly equal to total", () => {
-      // kvar = 0, exactly at boundary
-      const r = raknaDel(100, "egna", 60, 40);
+    it("egna exakt = beloppet", () => {
+      const r = raknaDel(100, "egna", DEL2, { p1: 60, p2: 40 });
       assert.notEqual(r, null);
-      assertClose(r.delP1 + r.delP2, 100, "sum");
+      assertClose(r.p1 + r.p2, 100, "summa");
     });
 
-    it("handles tiny overshoot within tolerance", () => {
-      // kvar = 100 - 50.0005 - 50.0004 = -0.0009 => within 0.001 tolerance, should NOT be null
-      const r = raknaDel(100, "egna", 50.0005, 50.0004);
+    it("liten overshoot inom tolerans", () => {
+      // kvar = -0.0009 → inom 0.001-tolerans, inte null
+      const r = raknaDel(100, "egna", DEL2, { p1: 50.0005, p2: 50.0004 });
       assert.notEqual(r, null);
     });
 
-    it("handles one person paying nothing personal", () => {
-      const r = raknaDel(100, "egna", 0, 30);
-      // kvar = 70, delat = 35 => delP1 = 35, delP2 = 65
-      assertClose(r.delP1, 35, "delP1");
-      assertClose(r.delP2, 65, "delP2");
+    it("en person helt utan egna", () => {
+      const r = raknaDel(100, "egna", DEL2, { p1: 0, p2: 30 });
+      // kvar=70, delat=35 → p1=35, p2=65
+      assertClose(r.p1, 35, "p1");
+      assertClose(r.p2, 65, "p2");
+    });
+
+    it("tom egna-map = allt delat jämnt", () => {
+      const r = raknaDel(100, "egna", DEL2);
+      assertClose(r.p1, 50, "p1");
+      assertClose(r.p2, 50, "p2");
+    });
+  });
+
+  // --- egna (N=3) ----------------------------------------------------------
+  describe("egna, N=3", () => {
+    it("en person har eget påslag, resten delas jämnt", () => {
+      // bel=300, p1 egna=60 (vin), p2=0, p3=0 → kvar=240 → delat=80
+      // p1=60+80=140, p2=80, p3=80
+      const r = raknaDel(300, "egna", DEL3, { p1: 60 });
+      assertClose(r.p1, 140, "p1");
+      assertClose(r.p2, 80, "p2");
+      assertClose(r.p3, 80, "p3");
+      assertClose(r.p1 + r.p2 + r.p3, 300, "summa");
+    });
+
+    it("null när summa egna > beloppet även med N=3", () => {
+      const r = raknaDel(100, "egna", DEL3, { p1: 50, p2: 40, p3: 30 });
+      assert.equal(r, null);
+    });
+  });
+
+  // --- edge cases ----------------------------------------------------------
+  describe("edge cases", () => {
+    it("returnerar null för tom deltagarlista", () => {
+      assert.equal(raknaDel(100, "jamnt", []), null);
+    });
+
+    it("returnerar null för okänd typ", () => {
+      assert.equal(raknaDel(100, "annat", DEL2), null);
     });
   });
 });
 
 // ===========================================================================
-// raknaUtSaldo — balance summation (THE critical function)
+// raknaUtSaldo — N-personers nettosaldo
 // ===========================================================================
 describe("raknaUtSaldo", () => {
-  it("returns 0 for no expenses", () => {
-    assert.equal(raknaUtSaldo([]), 0);
+  it("tom lista → noll per person", () => {
+    const s = raknaUtSaldo([], P2);
+    assert.equal(s.p1, 0);
+    assert.equal(s.p2, 0);
   });
 
-  // --- Single expenses -----------------------------------------------------
-  it("Mikael pays 50/50 => person2 owes their half", () => {
-    const saldo = raknaUtSaldo([
-      { betalare: "p1", delP1: 50, delP2: 50 },
-    ]);
-    assertClose(saldo, 50, "saldo");
+  // --- bevarar 2-personers-konventionen ------------------------------------
+  describe("N=2, bevarar tidigare siffror", () => {
+    it("p1 betalar 100 jämnt → p2 skyldig 50", () => {
+      const s = raknaUtSaldo(
+        [{ betalare_id: "p1", belopp: 100, fordelning: { p1: 50, p2: 50 } }],
+        P2
+      );
+      // Konvention tidigare: saldo > 0 ⇔ p2 skyldig p1. Nu: s.p1 > 0 ⇔ p1 ska få.
+      assertClose(s.p1, 50, "p1");
+      assertClose(s.p2, -50, "p2");
+    });
+
+    it("p2 betalar 100 jämnt → p1 skyldig 50", () => {
+      const s = raknaUtSaldo(
+        [{ betalare_id: "p2", belopp: 100, fordelning: { p1: 50, p2: 50 } }],
+        P2
+      );
+      assertClose(s.p1, -50, "p1");
+      assertClose(s.p2, 50, "p2");
+    });
+
+    it("lika motsatta betalningar nollar ut", () => {
+      const s = raknaUtSaldo(
+        [
+          { betalare_id: "p1", belopp: 100, fordelning: { p1: 50, p2: 50 } },
+          { betalare_id: "p2", belopp: 100, fordelning: { p1: 50, p2: 50 } },
+        ],
+        P2
+      );
+      assertClose(s.p1, 0, "p1");
+      assertClose(s.p2, 0, "p2");
+    });
+
+    it("flera utgifter från samma betalare ackumulerar", () => {
+      const s = raknaUtSaldo(
+        [
+          { betalare_id: "p1", belopp: 100, fordelning: { p1: 50, p2: 50 } },
+          { betalare_id: "p1", belopp: 50, fordelning: { p1: 25, p2: 25 } },
+        ],
+        P2
+      );
+      assertClose(s.p1, 75, "p1 ska få 75");
+      assertClose(s.p2, -75, "p2 skyldig 75");
+    });
+
+    it("realistisk vecka", () => {
+      const utg = [
+        { betalare_id: "p1", belopp: 450, fordelning: { p1: 225, p2: 225 } },
+        { betalare_id: "p2", belopp: 380, fordelning: { p1: 190, p2: 190 } },
+        { betalare_id: "p1", belopp: 120, fordelning: { p1: 60, p2: 60 } },
+        { betalare_id: "p2", belopp: 240, fordelning: { p1: 120, p2: 120 } },
+        // Fredag: Mikael middag 500kr, egna vin 80kr → p1:290, p2:210
+        { betalare_id: "p1", belopp: 500, fordelning: { p1: 290, p2: 210 } },
+      ];
+      const s = raknaUtSaldo(utg, P2);
+      // Tidigare: +225 -190 +60 -120 +210 = +185 (p2 skyldig p1)
+      assertClose(s.p1, 185, "p1");
+      assertClose(s.p2, -185, "p2");
+    });
+
+    it("nollsummespel: summan av alla saldon = 0", () => {
+      const utg = [
+        { betalare_id: "p1", belopp: 100, fordelning: { p1: 30, p2: 70 } },
+        { betalare_id: "p2", belopp: 60, fordelning: { p1: 20, p2: 40 } },
+      ];
+      const s = raknaUtSaldo(utg, P2);
+      assertClose(s.p1 + s.p2, 0, "summan är 0");
+    });
   });
 
-  it("Person2 pays 50/50 => Mikael owes their half", () => {
-    const saldo = raknaUtSaldo([
-      { betalare: "p2", delP1: 50, delP2: 50 },
-    ]);
-    assertClose(saldo, -50, "saldo");
+  // --- N=3 -----------------------------------------------------------------
+  describe("N=3", () => {
+    it("p1 betalar 90 för alla tre jämnt", () => {
+      const s = raknaUtSaldo(
+        [{ betalare_id: "p1", belopp: 90, fordelning: { p1: 30, p2: 30, p3: 30 } }],
+        P3
+      );
+      assertClose(s.p1, 60, "p1 ska få 60");
+      assertClose(s.p2, -30, "p2 skyldig 30");
+      assertClose(s.p3, -30, "p3 skyldig 30");
+      assertClose(s.p1 + s.p2 + s.p3, 0, "nollsumma");
+    });
+
+    it("blandade betalare, summan 0 även för N=3", () => {
+      const utg = [
+        { betalare_id: "p1", belopp: 60, fordelning: { p1: 20, p2: 20, p3: 20 } },
+        { betalare_id: "p2", belopp: 30, fordelning: { p1: 10, p2: 10, p3: 10 } },
+        { betalare_id: "p3", belopp: 90, fordelning: { p1: 30, p2: 30, p3: 30 } },
+      ];
+      const s = raknaUtSaldo(utg, P3);
+      assertClose(s.p1 + s.p2 + s.p3, 0, "summa = 0");
+      // p1: +60 -20 -10 -30 = 0
+      // p2: -20 +30 -10 -30 = -30
+      // p3: -20 -10 +90 -30 = +30
+      assertClose(s.p1, 0, "p1");
+      assertClose(s.p2, -30, "p2");
+      assertClose(s.p3, 30, "p3");
+    });
   });
 
-  // --- Cancelling out ------------------------------------------------------
-  it("equal opposite payments cancel out to zero", () => {
-    const saldo = raknaUtSaldo([
-      { betalare: "p1", delP1: 50, delP2: 50 },
-      { betalare: "p2", delP1: 50, delP2: 50 },
-    ]);
-    assertClose(saldo, 0, "saldo");
-  });
-
-  // --- Multiple expenses ---------------------------------------------------
-  it("multiple expenses from same payer accumulate", () => {
-    const saldo = raknaUtSaldo([
-      { betalare: "p1", delP1: 50, delP2: 50 },
-      { betalare: "p1", delP1: 25, delP2: 25 },
-    ]);
-    // person2 owes 50 + 25 = 75
-    assertClose(saldo, 75, "saldo");
-  });
-
-  it("net balance with mixed payers", () => {
-    const saldo = raknaUtSaldo([
-      { betalare: "p1", delP1: 50, delP2: 50 },   // +50
-      { betalare: "p2", delP1: 30, delP2: 70 },   // -30
-      { betalare: "p1", delP1: 20, delP2: 80 },   // +80
-    ]);
-    // 50 - 30 + 80 = 100
-    assertClose(saldo, 100, "saldo");
-  });
-
-  // --- Custom split scenarios ----------------------------------------------
-  it("custom split: Mikael pays, uneven shares", () => {
-    // Mikael pays 100kr. delP1=70 (his share), delP2=30 (person2's share)
-    const saldo = raknaUtSaldo([
-      { betalare: "p1", delP1: 70, delP2: 30 },
-    ]);
-    // person2 owes Mikael 30
-    assertClose(saldo, 30, "saldo");
-  });
-
-  it("custom split: person2 pays, uneven shares", () => {
-    // Person2 pays 100kr. delP1=70 (Mikael's share), delP2=30 (person2's share)
-    const saldo = raknaUtSaldo([
-      { betalare: "p2", delP1: 70, delP2: 30 },
-    ]);
-    // Mikael owes person2 70
-    assertClose(saldo, -70, "saldo");
-  });
-
-  // --- Realistic scenario --------------------------------------------------
-  it("realistic week of shared expenses", () => {
-    const utgifter = [
-      // Monday: Mikael buys groceries 450kr, 50/50
-      { betalare: "p1", delP1: 225, delP2: 225 },
-      // Tuesday: Person2 pays restaurant 380kr, 50/50
-      { betalare: "p2", delP1: 190, delP2: 190 },
-      // Wednesday: Mikael pays taxi 120kr, 50/50
-      { betalare: "p1", delP1: 60, delP2: 60 },
-      // Thursday: Person2 buys film tickets 240kr, 50/50
-      { betalare: "p2", delP1: 120, delP2: 120 },
-      // Friday: Mikael buys dinner 500kr, custom split (his wine 80kr extra)
-      // egnaP1=80, shared=420, delat=210 => delP1=290, delP2=210
-      { betalare: "p1", delP1: 290, delP2: 210 },
-    ];
-    // Saldo: +225 - 190 + 60 - 120 + 210 = 185
-    const saldo = raknaUtSaldo(utgifter);
-    assertClose(saldo, 185, "weekly saldo");
-  });
-
-  // --- Edge cases ----------------------------------------------------------
-  it("all expenses paid by one person", () => {
-    const saldo = raknaUtSaldo([
-      { betalare: "p1", delP1: 50, delP2: 50 },
-      { betalare: "p1", delP1: 100, delP2: 100 },
-      { betalare: "p1", delP1: 25, delP2: 25 },
-    ]);
-    // person2 owes 50 + 100 + 25 = 175
-    assertClose(saldo, 175, "saldo");
-  });
-
-  it("many small expenses don't accumulate floating point errors significantly", () => {
-    // 100 small expenses of 0.10kr each, alternating payers, 50/50
-    const utgifter = [];
+  // --- flyttal -------------------------------------------------------------
+  it("många små utgifter, flyttalsdrift håller sig liten", () => {
+    const utg = [];
     for (let i = 0; i < 100; i++) {
-      utgifter.push({
-        betalare: i % 2 === 0 ? "p1" : "p2",
-        delP1: 0.05,
-        delP2: 0.05,
+      utg.push({
+        betalare_id: i % 2 === 0 ? "p1" : "p2",
+        belopp: 0.1,
+        fordelning: { p1: 0.05, p2: 0.05 },
       });
     }
-    // 50 times +0.05 and 50 times -0.05 => should be ~0
-    const saldo = raknaUtSaldo(utgifter);
-    assertClose(saldo, 0, "floating point saldo", 0.01);
-  });
-
-  it("single expense where one person owes everything", () => {
-    // Person2 had their own cost for the full amount
-    const saldo = raknaUtSaldo([
-      { betalare: "p1", delP1: 0, delP2: 100 },
-    ]);
-    assertClose(saldo, 100, "saldo");
+    const s = raknaUtSaldo(utg, P2);
+    assertClose(s.p1, 0, "p1", 0.01);
+    assertClose(s.p2, 0, "p2", 0.01);
   });
 });
 
 // ===========================================================================
-// egnaInfoText — live preview text
+// raknaParSaldon — parvis vy från mig:s perspektiv
+// ===========================================================================
+describe("raknaParSaldon", () => {
+  it("tom lista → alla parvisa 0", () => {
+    const r = raknaParSaldon([], "p1", P3);
+    assert.equal(r.length, 2);
+    assertClose(r.find((x) => x.id === "p2").netto, 0, "p2");
+    assertClose(r.find((x) => x.id === "p3").netto, 0, "p3");
+  });
+
+  it("N=2: parvisa saldot = nettosaldot", () => {
+    const utg = [
+      { betalare_id: "p1", belopp: 100, fordelning: { p1: 50, p2: 50 } },
+    ];
+    const r = raknaParSaldon(utg, "p1", P2);
+    assert.equal(r.length, 1);
+    assertClose(r[0].netto, 50, "p2 skyldig p1 50");
+  });
+
+  it("mig betalade, andra personer är skyldiga sina andelar", () => {
+    const utg = [
+      { betalare_id: "p1", belopp: 90, fordelning: { p1: 30, p2: 30, p3: 30 } },
+    ];
+    const r = raknaParSaldon(utg, "p1", P3);
+    assertClose(r.find((x) => x.id === "p2").netto, 30, "p2 skyldig 30");
+    assertClose(r.find((x) => x.id === "p3").netto, 30, "p3 skyldig 30");
+  });
+
+  it("någon annan betalade, mig är skyldig min andel till dem", () => {
+    const utg = [
+      { betalare_id: "p2", belopp: 90, fordelning: { p1: 30, p2: 30, p3: 30 } },
+    ];
+    const r = raknaParSaldon(utg, "p1", P3);
+    assertClose(r.find((x) => x.id === "p2").netto, -30, "jag skyldig p2 30");
+    assertClose(r.find((x) => x.id === "p3").netto, 0, "p3 orörd (jag inte del av deras krav)");
+  });
+
+  it("blandat: kvittar mig ↔ p2, p3 orörd", () => {
+    const utg = [
+      // mig betalar 50 för p2
+      { betalare_id: "p1", belopp: 100, fordelning: { p1: 50, p2: 50 } },
+      // p2 betalar 20 för mig
+      { betalare_id: "p2", belopp: 40, fordelning: { p1: 20, p2: 20 } },
+    ];
+    const r = raknaParSaldon(utg, "p1", P2);
+    // p2 skyldig mig 50 − 20 = 30
+    assertClose(r.find((x) => x.id === "p2").netto, 30, "p2 skyldig mig 30");
+  });
+
+  it("utgift som inte rör mig påverkar inte mina parvisa saldon", () => {
+    const utg = [
+      // p2 betalar för sig och p3 — jag är inte med
+      { betalare_id: "p2", belopp: 60, fordelning: { p2: 30, p3: 30 } },
+    ];
+    const r = raknaParSaldon(utg, "p1", P3);
+    assertClose(r.find((x) => x.id === "p2").netto, 0, "p2");
+    assertClose(r.find((x) => x.id === "p3").netto, 0, "p3");
+  });
+});
+
+// ===========================================================================
+// egnaInfoText
 // ===========================================================================
 describe("egnaInfoText", () => {
-  it("returns empty string for zero amount", () => {
-    assert.equal(egnaInfoText(0, 0, 0), "");
+  it("tomt vid 0", () => {
+    assert.equal(egnaInfoText(0, {}, DEL2), "");
   });
 
-  it("returns empty string for NaN amount", () => {
-    assert.equal(egnaInfoText(NaN, 0, 0), "");
+  it("tomt vid NaN", () => {
+    assert.equal(egnaInfoText(NaN, {}, DEL2), "");
   });
 
-  it("returns empty string for negative amount", () => {
-    assert.equal(egnaInfoText(-10, 0, 0), "");
+  it("tomt vid negativt", () => {
+    assert.equal(egnaInfoText(-10, {}, DEL2), "");
   });
 
-  it("shows shared split info for valid inputs", () => {
-    const txt = egnaInfoText(100, 20, 10);
+  it("N=2, visar delning", () => {
+    const txt = egnaInfoText(100, { p1: 20, p2: 10 }, DEL2);
     // kvar = 70, delat = 35
-    assert.ok(txt.includes("70,00"), "should contain remaining amount");
-    assert.ok(txt.includes("35,00"), "should contain split amount");
-    assert.ok(txt.includes("Delas"), "should contain 'Delas'");
+    assert.ok(txt.includes("70,00"));
+    assert.ok(txt.includes("35,00"));
+    assert.ok(txt.includes("Delas"));
+    assert.ok(txt.includes("÷ 2"));
   });
 
-  it("shows warning when personal costs exceed total", () => {
-    const txt = egnaInfoText(100, 60, 50);
-    assert.ok(txt.includes("överstiger"), "should warn about exceeding");
-    assert.ok(txt.includes("110,00"), "should show total personal costs");
+  it("N=3, visar delning med 3", () => {
+    const txt = egnaInfoText(300, { p1: 60 }, DEL3);
+    // kvar = 240, delat = 80
+    assert.ok(txt.includes("240,00"));
+    assert.ok(txt.includes("80,00"));
+    assert.ok(txt.includes("÷ 3"));
   });
 
-  it("handles all amount going to shared (egna = 0)", () => {
-    const txt = egnaInfoText(200, 0, 0);
-    assert.ok(txt.includes("200,00"), "should show full amount as shared");
-    assert.ok(txt.includes("100,00"), "should show half");
+  it("varnar när egna > belopp", () => {
+    const txt = egnaInfoText(100, { p1: 60, p2: 50 }, DEL2);
+    assert.ok(txt.includes("överstiger"));
+    assert.ok(txt.includes("110,00"));
   });
 
-  it("handles personal costs exactly equal to total", () => {
-    const txt = egnaInfoText(100, 50, 50);
-    // kvar = 0, delat = 0
-    assert.ok(txt.includes("Delas"), "should show split info, not warning");
-    assert.ok(txt.includes("0,00"), "shared amount is 0");
+  it("allt delat (egna=0)", () => {
+    const txt = egnaInfoText(200, {}, DEL2);
+    assert.ok(txt.includes("200,00"));
+    assert.ok(txt.includes("100,00"));
+  });
+
+  it("egna exakt = beloppet", () => {
+    const txt = egnaInfoText(100, { p1: 50, p2: 50 }, DEL2);
+    assert.ok(txt.includes("Delas"));
+    assert.ok(txt.includes("0,00"));
   });
 });
 
 // ===========================================================================
-// Integration: raknaDel + raknaUtSaldo together
+// migreraUtgift — idempotent konvertering från gammalt format
 // ===========================================================================
-describe("integration: raknaDel -> raknaUtSaldo", () => {
-  it("two identical expenses by different payers cancel out", () => {
-    const del1 = raknaDel(200, "50");
-    const del2 = raknaDel(200, "50");
-    const saldo = raknaUtSaldo([
-      { betalare: "p1", ...del1 },
-      { betalare: "p2", ...del2 },
-    ]);
-    assertClose(saldo, 0, "should cancel out");
+describe("migreraUtgift", () => {
+  it("konverterar gammalt 50/50-objekt", () => {
+    const gammal = {
+      id: 1,
+      beskrivning: "Mat",
+      belopp: 100,
+      betalare: "p1",
+      delP1: 50,
+      delP2: 50,
+      datum: "2026-04-18",
+    };
+    const ny = migreraUtgift(gammal);
+    assert.equal(ny.betalare_id, "p1");
+    assert.deepEqual(ny.fordelning, { p1: 50, p2: 50 });
+    assert.equal(ny.belopp, 100);
+    assert.equal(ny.beskrivning, "Mat");
+    assert.equal(ny.datum, "2026-04-18");
+    assert.equal(ny.id, 1);
+    assert.equal("betalare" in ny, false);
+    assert.equal("delP1" in ny, false);
+    assert.equal("delP2" in ny, false);
   });
 
-  it("custom splits produce correct net balance", () => {
-    // Mikael pays 100, egna: p1=30, p2=20 => delP1=55, delP2=45
-    const del1 = raknaDel(100, "egna", 30, 20);
-    // Person2 pays 80, 50/50 => delP1=40, delP2=40
-    const del2 = raknaDel(80, "50");
-
-    const saldo = raknaUtSaldo([
-      { betalare: "p1", ...del1 },
-      { betalare: "p2", ...del2 },
-    ]);
-    // +45 (person2 owes from first) - 40 (Mikael owes from second) = +5
-    assertClose(saldo, 5, "net saldo");
+  it("konverterar egna-kostnader-objekt", () => {
+    const gammal = { id: 2, belopp: 100, betalare: "p2", delP1: 70, delP2: 30 };
+    const ny = migreraUtgift(gammal);
+    assert.equal(ny.betalare_id, "p2");
+    assert.deepEqual(ny.fordelning, { p1: 70, p2: 30 });
   });
 
-  it("person who pays nothing personal but pays bill gets correct credit", () => {
-    // Mikael pays 100, egna: p1=0, p2=100. kvar=0 => delP1=0, delP2=100
-    const del = raknaDel(100, "egna", 0, 100);
-    assertClose(del.delP1, 0, "delP1");
-    assertClose(del.delP2, 100, "delP2");
+  it("idempotent på redan migrerat objekt", () => {
+    const nyttFormat = {
+      id: 3,
+      belopp: 100,
+      betalare_id: "p1",
+      fordelning: { p1: 50, p2: 50 },
+    };
+    const resultat = migreraUtgift(nyttFormat);
+    assert.equal(resultat, nyttFormat);
+  });
+});
 
-    const saldo = raknaUtSaldo([{ betalare: "p1", ...del }]);
-    // person2 owes Mikael 100 (full amount since it was all person2's cost)
-    assertClose(saldo, 100, "saldo");
+// ===========================================================================
+// Integration: raknaDel → raknaUtSaldo
+// ===========================================================================
+describe("integration: raknaDel → raknaUtSaldo", () => {
+  it("två identiska utgifter av olika betalare nollar ut", () => {
+    const f1 = raknaDel(200, "jamnt", DEL2);
+    const f2 = raknaDel(200, "jamnt", DEL2);
+    const s = raknaUtSaldo(
+      [
+        { betalare_id: "p1", belopp: 200, fordelning: f1 },
+        { betalare_id: "p2", belopp: 200, fordelning: f2 },
+      ],
+      P2
+    );
+    assertClose(s.p1, 0, "p1");
+    assertClose(s.p2, 0, "p2");
   });
 
-  it("symmetry: swapping payer inverts the saldo", () => {
-    const del = raknaDel(100, "egna", 30, 20);
+  it("egna-split ger rätt nettosaldo", () => {
+    const f1 = raknaDel(100, "egna", DEL2, { p1: 30, p2: 20 }); // p1:55, p2:45
+    const f2 = raknaDel(80, "jamnt", DEL2);                      // p1:40, p2:40
+    const s = raknaUtSaldo(
+      [
+        { betalare_id: "p1", belopp: 100, fordelning: f1 },
+        { betalare_id: "p2", belopp: 80, fordelning: f2 },
+      ],
+      P2
+    );
+    // p1 ska få: +100 -55 -40 = +5; p2 ska få: -45 +80 -40 = -5
+    assertClose(s.p1, 5, "p1");
+    assertClose(s.p2, -5, "p2");
+  });
 
-    const saldoP1Pays = raknaUtSaldo([{ betalare: "p1", ...del }]);
-    const saldoP2Pays = raknaUtSaldo([{ betalare: "p2", ...del }]);
-
-    // When p1 pays: saldo = +delP2 = +45
-    // When p2 pays: saldo = -delP1 = -55
-    // These should NOT be negatives of each other (unless 50/50) because the shares are different
-    assertClose(saldoP1Pays, 45, "p1 pays");
-    assertClose(saldoP2Pays, -55, "p2 pays");
-    // But sum should equal total: |45| + |55| = 100
-    assertClose(Math.abs(saldoP1Pays) + Math.abs(saldoP2Pays), 100, "sum of absolutes");
+  it("symmetri: byta betalare inverterar inte exakt vid ojämn split", () => {
+    const f = raknaDel(100, "egna", DEL2, { p1: 30, p2: 20 }); // p1:55, p2:45
+    const sP1 = raknaUtSaldo(
+      [{ betalare_id: "p1", belopp: 100, fordelning: f }],
+      P2
+    );
+    const sP2 = raknaUtSaldo(
+      [{ betalare_id: "p2", belopp: 100, fordelning: f }],
+      P2
+    );
+    assertClose(sP1.p1, 45, "p1 betalar: p1 ska få 45");
+    assertClose(sP2.p2, 55, "p2 betalar: p2 ska få 55");
   });
 });

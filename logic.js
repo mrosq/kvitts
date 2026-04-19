@@ -1,61 +1,147 @@
 // Pure logic functions shared by app.js (browser) and logic.test.js (Node).
+// N-personers-generalisering — se docs/features/006a-fundament-n-personer.md.
 
 /**
- * Calculate each person's share of an expense.
- * @param {number} belopp  - total expense
- * @param {string} typ     - "50" for even split, "egna" for custom
- * @param {number} egnaP1  - Mikael's personal portion (only used when typ === "egna")
- * @param {number} egnaP2  - Person 2's personal portion (only used when typ === "egna")
- * @returns {{ delP1: number, delP2: number } | null}  null when egna exceeds total
+ * Dela en utgift mellan deltagare.
+ *
+ * @param {number}   belopp      - totalt belopp
+ * @param {string}   typ         - "jamnt" (alias "50") eller "egna"
+ * @param {string[]} deltagare   - lista av person-id:n som delar utgiften
+ * @param {Object<string,number>} [egna={}]  - endast vid typ "egna": id → egen del
+ * @returns {Object<string,number> | null}   - fordelning {id: andel}, eller null
+ *                                             om Σ egna > belopp (tolerans 0.001)
  */
-function raknaDel(belopp, typ, egnaP1 = 0, egnaP2 = 0) {
-  if (typ === "50") return { delP1: belopp / 2, delP2: belopp / 2 };
-  const kvar = belopp - egnaP1 - egnaP2;
-  if (kvar < -0.001) return null;
-  const delat = kvar / 2;
-  return { delP1: egnaP1 + delat, delP2: egnaP2 + delat };
+function raknaDel(belopp, typ, deltagare, egna = {}) {
+  if (!Array.isArray(deltagare) || deltagare.length === 0) return null;
+
+  if (typ === "jamnt" || typ === "50") {
+    const andel = belopp / deltagare.length;
+    const fordelning = {};
+    for (const id of deltagare) fordelning[id] = andel;
+    return fordelning;
+  }
+
+  if (typ === "egna") {
+    let summaEgna = 0;
+    for (const id of deltagare) summaEgna += egna[id] || 0;
+    const kvar = belopp - summaEgna;
+    if (kvar < -0.001) return null;
+    const delat = kvar / deltagare.length;
+    const fordelning = {};
+    for (const id of deltagare) fordelning[id] = (egna[id] || 0) + delat;
+    return fordelning;
+  }
+
+  return null;
 }
 
 /**
- * Calculate the balance across a list of expenses.
- * Positive = person 2 owes Mikael. Negative = Mikael owes person 2.
- * @param {{ betalare: string, delP1: number, delP2: number }[]} utgifter
- * @returns {number}
+ * Beräkna nettosaldo per person över en lista av utgifter.
+ * Netto > 0 → personen ska få in pengar. Netto < 0 → personen är skyldig.
+ *
+ * @param {Array<{betalare_id: string, belopp: number, fordelning: Object<string,number>}>} utgifter
+ * @param {Array<{id: string}>} personer  - alla personer som ska få en post i resultatet
+ * @returns {Object<string,number>}       - {id: nettoSaldo} för varje person i `personer`
  */
-function raknaUtSaldo(utgifter) {
-  let saldo = 0;
+function raknaUtSaldo(utgifter, personer) {
+  const saldo = {};
+  for (const p of personer) saldo[p.id] = 0;
   for (const u of utgifter) {
-    saldo += u.betalare === "p1" ? u.delP2 : -u.delP1;
+    if (u.betalare_id in saldo) saldo[u.betalare_id] += u.belopp;
+    for (const id in u.fordelning) {
+      if (id in saldo) saldo[id] -= u.fordelning[id];
+    }
   }
   return saldo;
 }
 
 /**
- * Info text shown during custom split entry.
- * @param {number} bel     - total expense
- * @param {number} egnaP1  - Mikael's personal portion
- * @param {number} egnaP2  - Person 2's personal portion
+ * Parvisa nettosaldon mellan "mig" och varje annan person.
+ * För varje annan X: (mig betalat för X:s andel) − (X betalat för mig:s andel).
+ * Positivt → X skyldig mig. Negativt → mig skyldig X.
+ *
+ * @param {Array<{betalare_id: string, fordelning: Object<string,number>}>} utgifter
+ * @param {string} migId
+ * @param {Array<{id: string}>} personer
+ * @returns {Array<{id: string, netto: number}>}  - en post per person ≠ migId
+ */
+function raknaParSaldon(utgifter, migId, personer) {
+  const par = {};
+  for (const p of personer) if (p.id !== migId) par[p.id] = 0;
+
+  for (const u of utgifter) {
+    const delning = u.fordelning || {};
+    if (u.betalare_id === migId) {
+      for (const id in delning) {
+        if (id !== migId && id in par) par[id] += delning[id];
+      }
+    } else if (u.betalare_id in par) {
+      par[u.betalare_id] -= delning[migId] || 0;
+    }
+  }
+
+  return Object.entries(par).map(([id, netto]) => ({ id, netto }));
+}
+
+/**
+ * Live preview-text för "egna kostnader"-läget.
+ *
+ * @param {number} belopp
+ * @param {Object<string,number>} egna      - {id: egen_del}
+ * @param {string[]} deltagare
  * @returns {string}
  */
-function egnaInfoText(bel, egnaP1, egnaP2) {
-  const kvar = bel - egnaP1 - egnaP2;
-  if (isNaN(bel) || bel <= 0) return "";
-  if (kvar < -0.001)
+function egnaInfoText(belopp, egna = {}, deltagare = []) {
+  if (isNaN(belopp) || belopp <= 0) return "";
+  let summaEgna = 0;
+  for (const id of deltagare) summaEgna += egna[id] || 0;
+  const kvar = belopp - summaEgna;
+  const n = deltagare.length || 1;
+
+  if (kvar < -0.001) {
     return (
       "⚠️ Egna kostnader (" +
-      (egnaP1 + egnaP2).toFixed(2).replace(".", ",") +
+      summaEgna.toFixed(2).replace(".", ",") +
       " kr) överstiger totalt (" +
-      bel.toFixed(2).replace(".", ",") +
+      belopp.toFixed(2).replace(".", ",") +
       " kr)"
     );
-  const delat = kvar / 2;
+  }
+  const delat = kvar / n;
   return (
     "Delas: " +
     kvar.toFixed(2).replace(".", ",") +
-    " kr ÷ 2 = " +
+    " kr ÷ " +
+    n +
+    " = " +
     delat.toFixed(2).replace(".", ",") +
     " kr var"
   );
 }
 
-if (typeof module !== "undefined") module.exports = { raknaDel, raknaUtSaldo, egnaInfoText };
+/**
+ * Migrera en utgift från gammalt 2-personers-format till N-personers-format.
+ * Idempotent — returnerar objektet oförändrat om det redan är migrerat.
+ *
+ * @param {Object} u  - utgift i något av formaten
+ * @returns {Object}  - utgift i nytt format
+ */
+function migreraUtgift(u) {
+  if (u.fordelning && u.betalare_id) return u;
+  const { betalare, delP1, delP2, ...rest } = u;
+  return {
+    ...rest,
+    betalare_id: betalare,
+    fordelning: { p1: delP1 || 0, p2: delP2 || 0 },
+  };
+}
+
+if (typeof module !== "undefined") {
+  module.exports = {
+    raknaDel,
+    raknaUtSaldo,
+    raknaParSaldon,
+    egnaInfoText,
+    migreraUtgift,
+  };
+}
