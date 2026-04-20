@@ -181,6 +181,20 @@
     padding: 0.85rem 1rem; background: #fde8e4; color: var(--accent); border: none;
     border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 0.95rem; cursor: pointer;
   }
+  .app-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0.2rem; }
+  .app-header h1 { margin-bottom: 0; }
+  .btn-meny-ikon {
+    background: none; border: none; font-size: 1.4rem; cursor: pointer;
+    color: var(--muted); padding: 0.2rem 0.4rem; border-radius: 8px; line-height: 1; margin-top: 0.3rem;
+  }
+  .btn-meny-ikon:hover { color: var(--ink); }
+  .meny-lista { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.5rem; }
+  .meny-rad {
+    width: 100%; padding: 1rem 1.1rem; text-align: left; background: var(--bg);
+    border: 1.5px solid var(--border); border-radius: var(--radius);
+    font-family: 'DM Sans', sans-serif; font-size: 0.95rem; cursor: pointer; color: var(--ink);
+  }
+  .meny-rad:active { border-color: var(--ink); }
 </style>
 </head>
 <body>
@@ -229,7 +243,10 @@
 </div>
 
 <div id="app" style="display:none">
-  <h1>Kvitts</h1>
+  <div class="app-header">
+    <h1>Kvitts</h1>
+    <button class="btn-meny-ikon" onclick="visaMeny()" title="Mer">⚙</button>
+  </div>
   <p class="subtitle" id="app-subtitle"></p>
 
   <div class="saldo-kort" id="saldo-kort" onclick="visaSaldoDetalj()">
@@ -237,8 +254,6 @@
     <div class="saldo-belopp" id="saldo-belopp">0 kr</div>
     <div class="saldo-text" id="saldo-text"></div>
   </div>
-  <button class="btn-reglera" onclick="visaRegleraModal()">✓ Markera som reglerat</button>
-
   <div class="sektion-rubrik">Ny utgift</div>
   <div class="kort">
     <div class="form-rad">
@@ -272,9 +287,22 @@
     <div class="tom-historik">Inga utgifter ännu.</div>
   </div>
 
-  <div class="btn-grupp">
-    <button class="btn-export" onclick="document.getElementById('ladda-input').click()">⬆ Ladda fil</button>
-    <button class="btn-export" onclick="sparaFil()" id="spara-fil-btn" style="display:none">⬇ Spara fil</button>
+</div>
+
+<!-- MENY MODAL -->
+<div class="modal-overlay" id="meny-modal" onclick="stangMenyVidKlickUtanfor(event)">
+  <div class="modal">
+    <h2>Inställningar</h2>
+    <div class="meny-lista">
+      <button class="meny-rad" onclick="visaRegleraFranMeny()">✓ Markera som reglerat</button>
+      <div style="display:flex; gap:0.5rem;">
+        <button class="meny-rad" style="flex:1" onclick="laddaFilFranMeny()">⬆ Ladda fil</button>
+        <button class="meny-rad" id="meny-spara-btn" style="display:none; flex:1" onclick="sparaFilFranMeny()">⬇ Spara fil</button>
+      </div>
+    </div>
+    <div class="modal-knappar">
+      <button class="btn-avbryt" style="flex:none; width:100%;" onclick="stangModal('meny-modal')">Stäng</button>
+    </div>
   </div>
 </div>
 

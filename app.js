@@ -189,7 +189,6 @@ function visaApp() {
 
   resetDatum();
   uppdatera();
-  document.getElementById("spara-fil-btn").style.display = utgifter.length > 0 ? "block" : "none";
 }
 
 function populeraBetalarDropdowns() {
@@ -512,7 +511,17 @@ function laddaFil(event) {
 
 function spara() {
   localStorage.setItem("kvitts_utgifter", JSON.stringify(utgifter));
-  document.getElementById("spara-fil-btn").style.display = utgifter.length > 0 ? "block" : "none";
 }
+
+function visaMeny() {
+  document.getElementById("meny-spara-btn").style.display = utgifter.length > 0 ? "block" : "none";
+  document.getElementById("meny-modal").classList.add("visa");
+}
+function stangMenyVidKlickUtanfor(event) {
+  if (event.target === document.getElementById("meny-modal")) stangModal("meny-modal");
+}
+function visaRegleraFranMeny() { stangModal("meny-modal"); visaRegleraModal(); }
+function laddaFilFranMeny() { stangModal("meny-modal"); document.getElementById("ladda-input").click(); }
+function sparaFilFranMeny() { sparaFil(); stangModal("meny-modal"); }
 
 init();
