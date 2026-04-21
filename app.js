@@ -3,11 +3,24 @@ let personer = [];
 let migId = "p1";
 let person1 = "";
 let person2 = "";
-let splitTyp = "jamnt";
-let editSplitTyp = "jamnt";
 let utgifter = [];
 let valtDatum = new Date();
 let editId = null;
+
+// Split-state för lägg-till-formuläret
+let splitTyp = "jamnt";          // "jamnt" | "delmangd" | "egna"
+let splitInkluderade = [];       // tom = alla; annars specifika ids
+let splitEgna = {};              // {id: belopp} – egna input-värden
+
+// Split-state för edit-modal
+let editSplitTyp = "jamnt";
+let editSplitInkluderade = [];
+let editSplitEgna = {};
+
+// Tillfälligt state inuti split-modalen
+let splitModalKontext = "add";   // "add" | "edit"
+let splitModalTempInkluderade = [];
+let splitModalTempEgna = {};
 
 function syncaPersonAlias() {
   person1 = personer[0]?.namn || "";
@@ -184,8 +197,11 @@ function visaApp() {
   document.getElementById("app-subtitle").textContent = subtitle;
 
   populeraBetalarDropdowns();
-  populeraSplitFalt("split-inputs-container", "uppdateraEgnaInfo");
-  populeraSplitFalt("edit-split-inputs-container", "uppdateraEditEgnaInfo");
+
+  splitTyp = "jamnt";
+  splitInkluderade = [];
+  splitEgna = {};
+  uppdateraSplitKnapp("add");
 
   resetDatum();
   uppdatera();
@@ -199,51 +215,174 @@ function populeraBetalarDropdowns() {
   });
 }
 
-function populeraSplitFalt(containerId, callbackNamn) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-  container.innerHTML = personer.map(p => `
-    <div class="split-person">
-      <label>${esc(p.namn)}s egna (kr)</label>
-      <input type="number" id="${containerId}-${p.id}" placeholder="0" min="0" step="0.01" oninput="${callbackNamn}()"/>
-    </div>`).join("");
-}
-
-function hamtaEgna(containerId) {
-  const egna = {};
-  for (const p of personer) {
-    egna[p.id] = parseFloat(document.getElementById(containerId + "-" + p.id)?.value) || 0;
-  }
-  return egna;
-}
-
-// SPLIT-TYP
-function setSplitTyp(typ) {
-  splitTyp = typ === "50" ? "jamnt" : typ;
-  document.getElementById("toggle-50").classList.toggle("aktiv", splitTyp === "jamnt");
-  document.getElementById("toggle-egna").classList.toggle("aktiv", splitTyp === "egna");
-  document.getElementById("split-inputs-wrapper").style.display = splitTyp === "egna" ? "block" : "none";
-  if (splitTyp === "egna") uppdateraEgnaInfo();
-}
-function setEditSplitTyp(typ) {
-  editSplitTyp = typ === "50" ? "jamnt" : typ;
-  document.getElementById("edit-toggle-50").classList.toggle("aktiv", editSplitTyp === "jamnt");
-  document.getElementById("edit-toggle-egna").classList.toggle("aktiv", editSplitTyp === "egna");
-  document.getElementById("edit-split-inputs-wrapper").style.display = editSplitTyp === "egna" ? "block" : "none";
-  if (editSplitTyp === "egna") uppdateraEditEgnaInfo();
-}
-
-// EGNA-INFO (live preview)
 function deltagareIds() {
   return personer.map(p => p.id);
 }
-function uppdateraEgnaInfo() {
-  const bel = parseFloat(document.getElementById("belopp").value) || 0;
-  document.getElementById("egna-info").textContent = egnaInfoText(bel, hamtaEgna("split-inputs-container"), deltagareIds());
+
+function uppdateraLaggTillKnapp() {
+  const besk = document.getElementById("beskrivning").value.trim();
+  const bel = parseFloat(document.getElementById("belopp").value);
+  document.getElementById("btn-lagg-till").disabled = !besk || isNaN(bel) || bel <= 0;
 }
-function uppdateraEditEgnaInfo() {
-  const bel = parseFloat(document.getElementById("edit-belopp").value) || 0;
-  document.getElementById("edit-egna-info").textContent = egnaInfoText(bel, hamtaEgna("edit-split-inputs-container"), deltagareIds());
+
+// INITIALER
+function initialer(namn) {
+  return namn.split(" ").map(d => d[0]).join("").substring(0, 2).toUpperCase();
+}
+
+// SPLIT-MODAL
+function oppnaSplitModal(kontext) {
+  splitModalKontext = kontext;
+  const aktInkl = kontext === "add" ? splitInkluderade : editSplitInkluderade;
+  const aktEgna = kontext === "add" ? splitEgna : editSplitEgna;
+  splitModalTempInkluderade = aktInkl.length > 0 ? [...aktInkl] : deltagareIds();
+  splitModalTempEgna = { ...aktEgna };
+  renderaCirklar();
+  visaSplitSteg1();
+  document.getElementById("split-modal").classList.add("visa");
+}
+
+function renderaCirklar() {
+  const container = document.getElementById("split-cirklar");
+  container.innerHTML = personer.map(p => {
+    const aktiv = splitModalTempInkluderade.includes(p.id);
+    return `
+      <div class="person-cirkel-wrapper">
+        <button class="person-cirkel${aktiv ? " aktiv" : ""}"
+          id="cirkel-${p.id}" onclick="toggleInkluderad('${p.id}')">
+          ${esc(initialer(p.namn))}
+        </button>
+        <span class="person-cirkel-namn">${esc(p.namn)}</span>
+      </div>`;
+  }).join("");
+}
+
+function toggleInkluderad(id) {
+  const idx = splitModalTempInkluderade.indexOf(id);
+  if (idx === -1) {
+    splitModalTempInkluderade.push(id);
+  } else {
+    if (splitModalTempInkluderade.length === 1) return;
+    splitModalTempInkluderade.splice(idx, 1);
+    delete splitModalTempEgna[id];
+  }
+  const btn = document.getElementById("cirkel-" + id);
+  if (btn) btn.classList.toggle("aktiv", splitModalTempInkluderade.includes(id));
+  const namn = btn?.nextElementSibling;
+  if (namn) namn.style.fontWeight = splitModalTempInkluderade.includes(id) ? "500" : "";
+  if (namn) namn.style.color = splitModalTempInkluderade.includes(id) ? "var(--ink)" : "";
+}
+
+function visaSplitSteg1() {
+  document.getElementById("split-steg-1").style.display = "block";
+  document.getElementById("split-steg-2").style.display = "none";
+}
+
+function visaSplitSteg2() {
+  const beloppId = splitModalKontext === "add" ? "belopp" : "edit-belopp";
+  const container = document.getElementById("split-egna-falt");
+  container.innerHTML = splitModalTempInkluderade.map(id => {
+    const p = personer.find(x => x.id === id);
+    const val = splitModalTempEgna[id] || "";
+    return `
+      <div class="split-person">
+        <label>${esc(p?.namn || id)}s egna (kr)</label>
+        <input type="number" id="split-egna-${id}" placeholder="0" min="0" step="0.01"
+          value="${val}" oninput="uppdateraSplitEgnaInfo()"/>
+      </div>`;
+  }).join("");
+  uppdateraSplitEgnaInfo();
+  document.getElementById("split-steg-1").style.display = "none";
+  document.getElementById("split-steg-2").style.display = "block";
+}
+
+function visaSplitSteg1FranSteg2() {
+  for (const id of splitModalTempInkluderade) {
+    const inp = document.getElementById("split-egna-" + id);
+    if (inp) splitModalTempEgna[id] = parseFloat(inp.value) || 0;
+  }
+  visaSplitSteg1();
+}
+
+function uppdateraSplitEgnaInfo() {
+  const beloppId = splitModalKontext === "add" ? "belopp" : "edit-belopp";
+  const bel = parseFloat(document.getElementById(beloppId).value) || 0;
+  const egna = {};
+  for (const id of splitModalTempInkluderade) {
+    egna[id] = parseFloat(document.getElementById("split-egna-" + id)?.value) || 0;
+  }
+  document.getElementById("split-egna-info").textContent = egnaInfoText(bel, egna, splitModalTempInkluderade);
+}
+
+function sparaDelmangd() {
+  const allaAr = splitModalTempInkluderade.length === personer.length;
+  if (splitModalKontext === "add") {
+    splitTyp = allaAr ? "jamnt" : "delmangd";
+    splitInkluderade = allaAr ? [] : [...splitModalTempInkluderade];
+    splitEgna = {};
+    uppdateraSplitKnapp("add");
+  } else {
+    editSplitTyp = allaAr ? "jamnt" : "delmangd";
+    editSplitInkluderade = allaAr ? [] : [...splitModalTempInkluderade];
+    editSplitEgna = {};
+    uppdateraSplitKnapp("edit");
+  }
+  stangSplitModal();
+}
+
+function sparaEgnaFranModal() {
+  const beloppId = splitModalKontext === "add" ? "belopp" : "edit-belopp";
+  const bel = parseFloat(document.getElementById(beloppId).value) || 0;
+  const egna = {};
+  let summa = 0;
+  for (const id of splitModalTempInkluderade) {
+    const v = parseFloat(document.getElementById("split-egna-" + id)?.value) || 0;
+    egna[id] = v;
+    summa += v;
+  }
+  if (bel > 0 && summa > bel + 0.001) {
+    document.getElementById("split-egna-info").textContent =
+      "⚠️ Egna belopp (" + summa.toFixed(2).replace(".",",") + " kr) överstiger totalt (" + bel.toFixed(2).replace(".",",") + " kr)";
+    return;
+  }
+  if (splitModalKontext === "add") {
+    splitTyp = "egna";
+    splitInkluderade = [...splitModalTempInkluderade];
+    splitEgna = { ...egna };
+    uppdateraSplitKnapp("add");
+  } else {
+    editSplitTyp = "egna";
+    editSplitInkluderade = [...splitModalTempInkluderade];
+    editSplitEgna = { ...egna };
+    uppdateraSplitKnapp("edit");
+  }
+  stangSplitModal();
+}
+
+function uppdateraSplitKnapp(kontext) {
+  const knappId = kontext === "add" ? "split-knapp" : "edit-split-knapp";
+  const btn = document.getElementById(knappId);
+  if (!btn) return;
+  const typ = kontext === "add" ? splitTyp : editSplitTyp;
+  const inkl = kontext === "add" ? splitInkluderade : editSplitInkluderade;
+  let text;
+  if (typ === "egna") {
+    text = "Egna belopp";
+  } else if (typ === "delmangd") {
+    const namn = inkl.map(id => personer.find(p => p.id === id)?.namn || id);
+    text = namn.length <= 2 ? "Delas: " + namn.join(" & ") : "Delas av " + namn.length + " st";
+  } else {
+    text = "Delas lika av alla";
+  }
+  btn.textContent = text;
+}
+
+function stangSplitModal() {
+  document.getElementById("split-modal").classList.remove("visa");
+}
+
+function stangSplitModalVidKlickUtanfor(event) {
+  if (event.target === document.getElementById("split-modal")) stangSplitModal();
 }
 
 // LÄGG TILL
@@ -252,7 +391,9 @@ function laggTillUtgift() {
   const bel = parseFloat(document.getElementById("belopp").value);
   const betalare_id = document.getElementById("betalare").value;
   if (!besk || isNaN(bel) || bel <= 0) { alert("Fyll i beskrivning och belopp."); return; }
-  const fordelning = raknaDel(bel, splitTyp, deltagareIds(), hamtaEgna("split-inputs-container"));
+  const deltagare = splitTyp === "jamnt" ? deltagareIds() : splitInkluderade;
+  const logikTyp = splitTyp === "delmangd" ? "jamnt" : splitTyp;
+  const fordelning = raknaDel(bel, logikTyp, deltagare, splitEgna);
   if (!fordelning) { alert("Egna kostnader överstiger totalt belopp."); return; }
   utgifter.unshift({
     id: Date.now(),
@@ -261,12 +402,18 @@ function laggTillUtgift() {
     betalare_id,
     fordelning,
     datum: datumTillStr(valtDatum),
+    splitTyp,
+    inkluderade: splitInkluderade.length > 0 ? [...splitInkluderade] : undefined,
+    egnaBelopp: splitTyp === "egna" ? { ...splitEgna } : undefined,
   });
   spara();
   document.getElementById("beskrivning").value = "";
   document.getElementById("belopp").value = "";
-  document.getElementById("egna-info").textContent = "";
-  setSplitTyp("jamnt");
+  document.getElementById("btn-lagg-till").disabled = true;
+  splitTyp = "jamnt";
+  splitInkluderade = [];
+  splitEgna = {};
+  uppdateraSplitKnapp("add");
   resetDatum();
   uppdatera();
 }
@@ -279,15 +426,21 @@ function oppnaEdit(id) {
   document.getElementById("edit-rubrik").textContent = u.beskrivning + "  ·  " + u.datum;
   document.getElementById("edit-belopp").value = u.belopp;
   document.getElementById("edit-betalare").value = u.betalare_id;
-  const n = personer.length;
-  const expectedShare = u.belopp / n;
-  const arJamnt = personer.every(p => Math.abs((u.fordelning?.[p.id] || 0) - expectedShare) < 0.001);
-  setEditSplitTyp(arJamnt ? "jamnt" : "egna");
-  for (const p of personer) {
-    const inp = document.getElementById("edit-split-inputs-container-" + p.id);
-    if (inp) inp.value = "";
+
+  if (u.splitTyp) {
+    editSplitTyp = u.splitTyp;
+    editSplitInkluderade = u.inkluderade ? [...u.inkluderade] : [];
+    editSplitEgna = u.egnaBelopp ? { ...u.egnaBelopp } : {};
+  } else {
+    // Bakåtkompatibel inferens för gamla utgifter
+    const n = personer.length;
+    const expectedShare = u.belopp / n;
+    const arJamnt = personer.every(p => Math.abs((u.fordelning?.[p.id] || 0) - expectedShare) < 0.001);
+    editSplitTyp = arJamnt ? "jamnt" : "egna";
+    editSplitInkluderade = [];
+    editSplitEgna = {};
   }
-  if (!arJamnt) uppdateraEditEgnaInfo();
+  uppdateraSplitKnapp("edit");
   document.getElementById("edit-modal").classList.add("visa");
 }
 
@@ -296,11 +449,18 @@ function sparaEdit() {
   const bel = parseFloat(document.getElementById("edit-belopp").value);
   const betalare_id = document.getElementById("edit-betalare").value;
   if (isNaN(bel) || bel <= 0) { alert("Ange ett giltigt belopp."); return; }
-  const fordelning = raknaDel(bel, editSplitTyp, deltagareIds(), hamtaEgna("edit-split-inputs-container"));
+  const deltagare = editSplitTyp === "jamnt" ? deltagareIds() : editSplitInkluderade;
+  const logikTyp = editSplitTyp === "delmangd" ? "jamnt" : editSplitTyp;
+  const fordelning = raknaDel(bel, logikTyp, deltagare, editSplitEgna);
   if (!fordelning) { alert("Egna kostnader överstiger totalt belopp."); return; }
   const idx = utgifter.findIndex(x => x.id === editId);
   if (idx !== -1) {
-    utgifter[idx] = { ...utgifter[idx], belopp: bel, betalare_id, fordelning };
+    utgifter[idx] = {
+      ...utgifter[idx], belopp: bel, betalare_id, fordelning,
+      splitTyp: editSplitTyp,
+      inkluderade: editSplitInkluderade.length > 0 ? [...editSplitInkluderade] : undefined,
+      egnaBelopp: editSplitTyp === "egna" ? { ...editSplitEgna } : undefined,
+    };
   }
   spara();
   uppdatera();
@@ -355,7 +515,7 @@ function uppdatera() {
       .filter(([, andel]) => andel > 0)
       .map(([id, andel]) => {
         const p = personer.find(x => x.id === id);
-        return esc(p?.namn || id) + ": " + andel.toFixed(2).replace(".",",") + "\u00a0kr";
+        return esc(p?.namn || id) + ": " + andel.toFixed(2).replace(".",",") + " kr";
       }).join(" &nbsp;·&nbsp; ");
     return `
       <div class="utgift-rad" onclick="oppnaEdit(${u.id})">
@@ -393,9 +553,6 @@ function visaSaldoDetalj() {
     }
   }).join("");
 
-  // Övriga — skulder mellan andra deltagare (inte mig)
-  // Iterera varje icke-mig-person och ta par där motparten också är icke-mig och netto > 0
-  // (netto > 0 = motparten är skyldig den itererade personen → visas en gång, deduplicerat)
   const ovrigaRader = [];
   for (const p of personer) {
     if (p.id === migId) continue;

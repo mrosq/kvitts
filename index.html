@@ -113,12 +113,31 @@
   .btn-lagg-till-person:disabled { opacity: 0.35; cursor: not-allowed; }
   .split-person label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.2rem; }
   .egna-info { font-size: 0.78rem; color: var(--muted); margin-top: 0.4rem; font-style: italic; }
+  .btn-split-mode {
+    padding: 0.5rem 1rem; border: 1.5px solid var(--border); border-radius: 10px;
+    background: var(--bg); font-family: 'DM Sans', sans-serif; font-size: 0.85rem;
+    cursor: pointer; color: var(--ink); transition: border-color 0.2s;
+  }
+  .btn-split-mode:hover { border-color: var(--ink); }
+  .person-cirklar { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-bottom: 1.5rem; }
+  .person-cirkel-wrapper { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; }
+  .person-cirkel {
+    width: 52px; height: 52px; border-radius: 50%; border: 2px solid var(--border);
+    background: var(--bg); font-size: 0.82rem; font-weight: 600; cursor: pointer;
+    color: var(--muted); font-family: 'DM Sans', sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, color 0.15s, border-color 0.15s; user-select: none;
+  }
+  .person-cirkel.aktiv { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .person-cirkel-namn { font-size: 0.7rem; color: var(--muted); max-width: 60px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .person-cirkel.aktiv + .person-cirkel-namn { color: var(--ink); font-weight: 500; }
 
   .btn-lagg-till {
     width: 100%; padding: 0.9rem; background: var(--accent); color: #fff;
     border: none; border-radius: 10px; font-size: 0.95rem;
     font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; margin-top: 0.3rem;
   }
+  .btn-lagg-till:disabled { opacity: 0.4; cursor: not-allowed; }
 
   .historik-lista { display: flex; flex-direction: column; gap: 0.6rem; }
   .utgift-rad {
@@ -257,10 +276,10 @@
   <div class="sektion-rubrik">Ny utgift</div>
   <div class="kort">
     <div class="form-rad">
-      <input type="text" id="beskrivning" placeholder="Beskrivning (t.ex. mat, taxi...)"/>
+      <input type="text" id="beskrivning" placeholder="Beskrivning (t.ex. mat, taxi...)" oninput="uppdateraLaggTillKnapp()"/>
     </div>
     <div class="form-rad">
-      <input type="number" id="belopp" placeholder="Belopp (kr)" min="0" step="0.01" style="flex:1; min-width:0;"/>
+      <input type="number" id="belopp" placeholder="Belopp (kr)" min="0" step="0.01" style="flex:1; min-width:0;" oninput="uppdateraLaggTillKnapp()"/>
       <select id="betalare" style="flex:1; min-width:0;"></select>
     </div>
     <div class="datum-rad">
@@ -270,16 +289,9 @@
     </div>
     <div class="split-rad">
       <div class="split-label">Hur delas utgiften?</div>
-      <div class="split-toggle">
-        <button id="toggle-50" class="aktiv" onclick="setSplitTyp('50')">50/50</button>
-        <button id="toggle-egna" onclick="setSplitTyp('egna')">Egna kostnader</button>
-      </div>
+      <button id="split-knapp" class="btn-split-mode" onclick="oppnaSplitModal('add')">Delas lika av alla</button>
     </div>
-    <div id="split-inputs-wrapper" style="display:none; margin-bottom:0.7rem;">
-      <div class="split-inputs" id="split-inputs-container"></div>
-      <div class="egna-info" id="egna-info"></div>
-    </div>
-    <button class="btn-lagg-till" onclick="laggTillUtgift()">+ Lägg till</button>
+    <button class="btn-lagg-till" id="btn-lagg-till" onclick="laggTillUtgift()" disabled>+ Lägg till</button>
   </div>
 
   <div class="sektion-rubrik">Historik</div>
@@ -340,19 +352,38 @@
     </div>
     <div class="split-rad">
       <div class="split-label">Hur delas utgiften?</div>
-      <div class="split-toggle">
-        <button id="edit-toggle-50" class="aktiv" onclick="setEditSplitTyp('50')">50/50</button>
-        <button id="edit-toggle-egna" onclick="setEditSplitTyp('egna')">Egna kostnader</button>
-      </div>
-    </div>
-    <div id="edit-split-inputs-wrapper" style="display:none; margin-bottom:0.7rem;">
-      <div class="split-inputs" id="edit-split-inputs-container"></div>
-      <div class="egna-info" id="edit-egna-info"></div>
+      <button id="edit-split-knapp" class="btn-split-mode" onclick="oppnaSplitModal('edit')">Delas lika av alla</button>
     </div>
     <div class="modal-knappar">
       <button class="btn-radera" onclick="raderaUtgift()">&#128465;</button>
       <button class="btn-avbryt" onclick="stangModal('edit-modal')">Avbryt</button>
       <button class="btn-bekrafta" onclick="sparaEdit()">Spara</button>
+    </div>
+  </div>
+</div>
+
+<!-- SPLIT MODAL -->
+<div class="modal-overlay" id="split-modal" onclick="stangSplitModalVidKlickUtanfor(event)">
+  <div class="modal">
+    <div id="split-steg-1">
+      <h2>Vem var med?</h2>
+      <p class="modal-sub">Avmarkera de som inte deltog i utgiften.</p>
+      <div class="person-cirklar" id="split-cirklar"></div>
+      <div class="modal-knappar">
+        <button class="btn-avbryt" onclick="stangSplitModal()">Avbryt</button>
+        <button class="btn-avbryt" onclick="visaSplitSteg2()">Egna belopp →</button>
+        <button class="btn-bekrafta" onclick="sparaDelmangd()">Spara</button>
+      </div>
+    </div>
+    <div id="split-steg-2" style="display:none">
+      <h2>Egna belopp</h2>
+      <p class="modal-sub">Ange vad varje person betalar för sig. Resten delas lika.</p>
+      <div class="split-inputs" id="split-egna-falt"></div>
+      <div class="egna-info" id="split-egna-info" style="margin-bottom:0.7rem;"></div>
+      <div class="modal-knappar">
+        <button class="btn-avbryt" onclick="visaSplitSteg1FranSteg2()">← Tillbaka</button>
+        <button class="btn-bekrafta" onclick="sparaEgnaFranModal()">Spara</button>
+      </div>
     </div>
   </div>
 </div>
