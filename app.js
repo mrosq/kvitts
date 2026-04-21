@@ -28,25 +28,36 @@ function syncaPersonAlias() {
 }
 
 // DATUM
+const MAX_DAGAR_BAK = 7;
 function datumTillStr(d) { return d.toLocaleDateString("sv-SE"); }
-function datumVisText(d) {
-  const idag = new Date(); idag.setHours(0,0,0,0);
-  const igår = new Date(idag); igår.setDate(igår.getDate()-1);
-  const imorgon = new Date(idag); imorgon.setDate(imorgon.getDate()+1);
-  const jmf = new Date(d); jmf.setHours(0,0,0,0);
-  if (jmf.getTime() === idag.getTime()) return "Idag · " + datumTillStr(d);
-  if (jmf.getTime() === igår.getTime()) return "Igår · " + datumTillStr(d);
-  if (jmf.getTime() === imorgon.getTime()) return "Imorgon · " + datumTillStr(d);
-  return datumTillStr(d);
+function dagarMellan(a, b) {
+  const a0 = new Date(a); a0.setHours(0,0,0,0);
+  const b0 = new Date(b); b0.setHours(0,0,0,0);
+  return Math.round((a0 - b0) / 86400000);
+}
+function datumChipText(d) {
+  const diff = dagarMellan(d, new Date());
+  if (diff === 0) return "Idag";
+  if (diff === -1) return "Igår";
+  return d.getDate() + "/" + (d.getMonth() + 1);
+}
+function uppdateraDatumChip() {
+  const diff = dagarMellan(valtDatum, new Date());
+  document.getElementById("datum-text").textContent = datumChipText(valtDatum);
+  document.getElementById("datum-pil-bak").hidden = diff <= -MAX_DAGAR_BAK;
+  document.getElementById("datum-pil-fram").hidden = diff >= 0;
 }
 function andradatum(steg) {
-  valtDatum = new Date(valtDatum);
-  valtDatum.setDate(valtDatum.getDate() + steg);
-  document.getElementById("datum-text").textContent = datumVisText(valtDatum);
+  const ny = new Date(valtDatum);
+  ny.setDate(ny.getDate() + steg);
+  const diff = dagarMellan(ny, new Date());
+  if (diff > 0 || diff < -MAX_DAGAR_BAK) return;
+  valtDatum = ny;
+  uppdateraDatumChip();
 }
 function resetDatum() {
   valtDatum = new Date();
-  document.getElementById("datum-text").textContent = datumVisText(valtDatum);
+  uppdateraDatumChip();
 }
 
 // MIGRATIONER

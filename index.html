@@ -82,20 +82,31 @@
   input:focus, select:focus { border-color: var(--accent); }
   input.setup-input { flex: none; height: auto; }
 
-  .datum-rad {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 0.5rem; margin-bottom: 0.7rem; background: var(--bg);
-    border: 1.5px solid var(--border); border-radius: 10px; padding: 0.4rem 0.5rem;
+  .datum-chip {
+    display: flex; align-items: center; gap: 0.1rem;
+    background: var(--bg); border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 0 0.2rem;
   }
-  .datum-pil {
-    background: none; border: none; font-size: 1.3rem; cursor: pointer;
-    color: var(--ink); padding: 0.25rem 0.6rem; border-radius: 6px; line-height: 1;
+  .datum-chip-pil {
+    background: none; border: none; font-size: 1.1rem; cursor: pointer;
+    color: var(--ink); padding: 0.3rem 0.45rem; border-radius: 6px; line-height: 1;
   }
-  .datum-pil:active { background: var(--border); }
-  .datum-text { font-size: 0.9rem; color: var(--ink); flex: 1; text-align: center; font-weight: 500; }
+  .datum-chip-pil:active { background: var(--border); }
+  .datum-chip-pil[hidden] { visibility: hidden; display: inline-block; }
+  .datum-chip-text {
+    font-size: 0.82rem; color: var(--ink); font-weight: 500;
+    min-width: 2.6rem; text-align: center;
+  }
 
-  .split-rad { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.7rem; flex-wrap: wrap; }
-  .split-label { font-size: 0.82rem; color: var(--muted); width: 100%; margin-bottom: 0.3rem; }
+  .split-rad {
+    display: flex; align-items: stretch; justify-content: space-between;
+    gap: 0.5rem; margin-bottom: 0.7rem;
+  }
+  .split-rad #split-knapp {
+    flex: 0 1 auto; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .split-rad .datum-chip { flex: 0 0 auto; }
   .split-toggle { display: flex; border: 1.5px solid var(--border); border-radius: 10px; overflow: hidden; }
   .split-toggle button {
     padding: 0.5rem 0.9rem; border: none; background: transparent;
@@ -276,20 +287,19 @@
   <div class="sektion-rubrik">Ny utgift</div>
   <div class="kort">
     <div class="form-rad">
-      <input type="text" id="beskrivning" placeholder="Beskrivning (t.ex. mat, taxi...)" oninput="uppdateraLaggTillKnapp()"/>
-    </div>
-    <div class="form-rad">
       <input type="number" id="belopp" placeholder="Belopp (kr)" min="0" step="0.01" style="flex:1; min-width:0;" oninput="uppdateraLaggTillKnapp()"/>
       <select id="betalare" style="flex:1; min-width:0;"></select>
     </div>
-    <div class="datum-rad">
-      <button class="datum-pil" onclick="andradatum(-1)">&#8249;</button>
-      <span class="datum-text" id="datum-text"></span>
-      <button class="datum-pil" onclick="andradatum(1)">&#8250;</button>
+    <div class="form-rad">
+      <input type="text" id="beskrivning" placeholder="Beskrivning (t.ex. mat, taxi...)" oninput="uppdateraLaggTillKnapp()"/>
     </div>
     <div class="split-rad">
-      <div class="split-label">Hur delas utgiften?</div>
       <button id="split-knapp" class="btn-split-mode" onclick="oppnaSplitModal('add')">Delas lika av alla</button>
+      <div class="datum-chip">
+        <button class="datum-chip-pil" id="datum-pil-bak" onclick="andradatum(-1)" aria-label="En dag bakåt">&#8249;</button>
+        <span class="datum-chip-text" id="datum-text"></span>
+        <button class="datum-chip-pil" id="datum-pil-fram" onclick="andradatum(1)" aria-label="En dag framåt">&#8250;</button>
+      </div>
     </div>
     <button class="btn-lagg-till" id="btn-lagg-till" onclick="laggTillUtgift()" disabled>+ Lägg till</button>
   </div>

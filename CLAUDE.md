@@ -54,10 +54,13 @@ Deployad på Vercel — varje push till `main` deployer automatiskt.
 
 Solo-utveckling, ingen GitHub Issues/Projects. Allt som textfiler i repot.
 
-- **`docs/TODO.md`** — index + små ettradare-saker
+- **`docs/TODO.md`** — enbart små ettradare-saker ("Quick"). Ingen features-lista här.
 - **`docs/features/NNN-slug.md`** — specs för riktiga features (numrerade löpande)
 - **`docs/features/_template.md`** — mall för nya specs
 - **`docs/features/done/`** — arkiverade specs när de är levererade (behåll historiken)
+
+Sanningen om vilka features som finns och vilka som är klara bor i filsystemet —
+öppna mapparna ovan istället för att synka en lista i TODO.md.
 
 När användaren säger "implementera 003" eller liknande → leta i `docs/features/` efter filen med det numret och följ den som kravspec.
 
