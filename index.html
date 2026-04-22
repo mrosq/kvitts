@@ -15,6 +15,9 @@
     background: var(--bg); font-family: 'DM Sans', sans-serif; color: var(--ink);
     min-height: 100vh; padding: 1.5rem 1rem 4rem; max-width: 480px; margin: 0 auto;
   }
+  input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   h1 { font-family: 'DM Serif Display', serif; font-size: 2rem; letter-spacing: -0.02em; margin-bottom: 0.2rem; }
   .subtitle { color: var(--muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
 
@@ -124,12 +127,18 @@
   .btn-lagg-till-person:disabled { opacity: 0.35; cursor: not-allowed; }
   .split-person label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.2rem; }
   .egna-info { font-size: 0.78rem; color: var(--muted); margin-top: 0.4rem; font-style: italic; }
-  .btn-split-mode {
-    padding: 0.5rem 1rem; border: 1.5px solid var(--border); border-radius: 10px;
-    background: var(--bg); font-family: 'DM Sans', sans-serif; font-size: 0.85rem;
-    cursor: pointer; color: var(--ink); transition: border-color 0.2s;
+  .split-toggle {
+    display: inline-flex; border: 1.5px solid var(--border); border-radius: 10px;
+    overflow: hidden; background: var(--bg); padding: 2px; gap: 2px;
   }
-  .btn-split-mode:hover { border-color: var(--ink); }
+  .split-toggle button {
+    padding: 0.45rem 0.85rem; border: none; background: transparent;
+    font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 500;
+    color: var(--muted); cursor: pointer; border-radius: 6px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .split-toggle button:hover:not(.aktiv) { color: var(--ink); }
+  .split-toggle button.aktiv { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
   .person-cirklar { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-bottom: 1.5rem; }
   .person-cirkel-wrapper { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; }
   .person-cirkel {
@@ -294,7 +303,10 @@
       <input type="text" id="beskrivning" placeholder="Beskrivning (t.ex. mat, taxi...)" oninput="uppdateraLaggTillKnapp()"/>
     </div>
     <div class="split-rad">
-      <button id="split-knapp" class="btn-split-mode" onclick="oppnaSplitModal('add')">Delas lika av alla</button>
+      <div class="split-toggle">
+        <button id="split-lika" onclick="valjDelasLika('add')">Delas lika</button>
+        <button id="split-knapp" onclick="oppnaSplitModal('add')">Anpassa…</button>
+      </div>
       <div class="datum-chip">
         <button class="datum-chip-pil" id="datum-pil-bak" onclick="andradatum(-1)" aria-label="En dag bakåt">&#8249;</button>
         <span class="datum-chip-text" id="datum-text"></span>
@@ -362,7 +374,10 @@
     </div>
     <div class="split-rad">
       <div class="split-label">Hur delas utgiften?</div>
-      <button id="edit-split-knapp" class="btn-split-mode" onclick="oppnaSplitModal('edit')">Delas lika av alla</button>
+      <div class="split-toggle">
+        <button id="edit-split-lika" onclick="valjDelasLika('edit')">Delas lika</button>
+        <button id="edit-split-knapp" onclick="oppnaSplitModal('edit')">Anpassa…</button>
+      </div>
     </div>
     <div class="modal-knappar">
       <button class="btn-radera" onclick="raderaUtgift()">&#128465;</button>

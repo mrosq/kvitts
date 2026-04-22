@@ -232,8 +232,7 @@ function deltagareIds() {
 
 function uppdateraLaggTillKnapp() {
   const besk = document.getElementById("beskrivning").value.trim();
-  const bel = parseFloat(document.getElementById("belopp").value);
-  document.getElementById("btn-lagg-till").disabled = !besk || isNaN(bel) || bel <= 0;
+  document.getElementById("btn-lagg-till").disabled = !besk;
 }
 
 // INITIALER
@@ -356,36 +355,65 @@ function sparaEgnaFranModal() {
       "⚠️ Egna belopp (" + summa.toFixed(2).replace(".",",") + " kr) överstiger totalt (" + bel.toFixed(2).replace(".",",") + " kr)";
     return;
   }
+  const allaAr = splitModalTempInkluderade.length === personer.length;
+  const harEgna = summa > 0.001;
+  let nyTyp, nyInkl, nyEgna;
+  if (!harEgna) {
+    nyTyp = allaAr ? "jamnt" : "delmangd";
+    nyInkl = allaAr ? [] : [...splitModalTempInkluderade];
+    nyEgna = {};
+  } else {
+    nyTyp = "egna";
+    nyInkl = [...splitModalTempInkluderade];
+    nyEgna = { ...egna };
+  }
   if (splitModalKontext === "add") {
-    splitTyp = "egna";
-    splitInkluderade = [...splitModalTempInkluderade];
-    splitEgna = { ...egna };
+    splitTyp = nyTyp;
+    splitInkluderade = nyInkl;
+    splitEgna = nyEgna;
     uppdateraSplitKnapp("add");
   } else {
-    editSplitTyp = "egna";
-    editSplitInkluderade = [...splitModalTempInkluderade];
-    editSplitEgna = { ...egna };
+    editSplitTyp = nyTyp;
+    editSplitInkluderade = nyInkl;
+    editSplitEgna = nyEgna;
     uppdateraSplitKnapp("edit");
   }
   stangSplitModal();
 }
 
 function uppdateraSplitKnapp(kontext) {
-  const knappId = kontext === "add" ? "split-knapp" : "edit-split-knapp";
-  const btn = document.getElementById(knappId);
-  if (!btn) return;
+  const likaBtn = document.getElementById(kontext === "add" ? "split-lika" : "edit-split-lika");
+  const anpassaBtn = document.getElementById(kontext === "add" ? "split-knapp" : "edit-split-knapp");
+  if (!likaBtn || !anpassaBtn) return;
   const typ = kontext === "add" ? splitTyp : editSplitTyp;
   const inkl = kontext === "add" ? splitInkluderade : editSplitInkluderade;
-  let text;
+  const arLika = typ === "jamnt";
+  let anpassaText;
   if (typ === "egna") {
-    text = "Egna belopp";
+    anpassaText = "Egna belopp";
   } else if (typ === "delmangd") {
     const namn = inkl.map(id => personer.find(p => p.id === id)?.namn || id);
-    text = namn.length <= 2 ? "Delas: " + namn.join(" & ") : "Delas av " + namn.length + " st";
+    anpassaText = namn.length <= 2 ? "Delas: " + namn.join(" & ") : "Delas av " + namn.length + " st";
   } else {
-    text = "Delas lika av alla";
+    anpassaText = "Anpassa…";
   }
-  btn.textContent = text;
+  anpassaBtn.textContent = anpassaText;
+  likaBtn.classList.toggle("aktiv", arLika);
+  anpassaBtn.classList.toggle("aktiv", !arLika);
+}
+
+function valjDelasLika(kontext) {
+  if (kontext === "add") {
+    splitTyp = "jamnt";
+    splitInkluderade = [];
+    splitEgna = {};
+    uppdateraSplitKnapp("add");
+  } else {
+    editSplitTyp = "jamnt";
+    editSplitInkluderade = [];
+    editSplitEgna = {};
+    uppdateraSplitKnapp("edit");
+  }
 }
 
 function stangSplitModal() {
@@ -401,15 +429,19 @@ function laggTillUtgift() {
   const besk = document.getElementById("beskrivning").value.trim();
   const bel = parseFloat(document.getElementById("belopp").value);
   const betalare_id = document.getElementById("betalare").value;
-  if (!besk || isNaN(bel) || bel <= 0) { alert("Fyll i beskrivning och belopp."); return; }
-  const deltagare = splitTyp === "jamnt" ? deltagareIds() : splitInkluderade;
-  const logikTyp = splitTyp === "delmangd" ? "jamnt" : splitTyp;
-  const fordelning = raknaDel(bel, logikTyp, deltagare, splitEgna);
-  if (!fordelning) { alert("Egna kostnader överstiger totalt belopp."); return; }
+  if (!besk) { alert("Fyll i beskrivning."); return; }
+  const harBelopp = !isNaN(bel) && bel > 0;
+  let fordelning = {};
+  if (harBelopp) {
+    const deltagare = splitTyp === "jamnt" ? deltagareIds() : splitInkluderade;
+    const logikTyp = splitTyp === "delmangd" ? "jamnt" : splitTyp;
+    fordelning = raknaDel(bel, logikTyp, deltagare, splitEgna);
+    if (!fordelning) { alert("Egna kostnader överstiger totalt belopp."); return; }
+  }
   utgifter.unshift({
     id: Date.now(),
     beskrivning: besk,
-    belopp: bel,
+    belopp: harBelopp ? bel : 0,
     betalare_id,
     fordelning,
     datum: datumTillStr(valtDatum),
@@ -518,16 +550,19 @@ function uppdatera() {
     lista.innerHTML = '<div class="tom-historik">Inga utgifter ännu.</div>';
     return;
   }
-  lista.innerHTML = utgifter.map(u => {
+  const sorterade = [...utgifter].sort((a, b) => (b.datum || "").localeCompare(a.datum || ""));
+  lista.innerHTML = sorterade.map(u => {
     const betalare = personer.find(p => p.id === u.betalare_id);
     const betalareNamn = betalare?.namn || u.betalare_id;
     const badgeKlass = u.betalare_id === migId ? "p1" : "p2";
-    const fordelningText = Object.entries(u.fordelning || {})
+    const harBelopp = u.belopp > 0;
+    const fordelningText = harBelopp ? Object.entries(u.fordelning || {})
       .filter(([, andel]) => andel > 0)
       .map(([id, andel]) => {
         const p = personer.find(x => x.id === id);
         return esc(p?.namn || id) + ": " + andel.toFixed(2).replace(".",",") + " kr";
-      }).join(" &nbsp;·&nbsp; ");
+      }).join(" &nbsp;·&nbsp; ") : "";
+    const beloppText = harBelopp ? u.belopp.toFixed(2).replace(".",",") + " kr" : "– kr";
     return `
       <div class="utgift-rad" onclick="oppnaEdit(${u.id})">
         <div class="utgift-info">
@@ -539,7 +574,7 @@ function uppdatera() {
           <span class="betald-badge ${badgeKlass}">Betalt av ${esc(betalareNamn)}</span>
         </div>
         <div class="utgift-belopp">
-          <div class="utgift-totalt">${u.belopp.toFixed(2).replace(".",",")} kr</div>
+          <div class="utgift-totalt">${beloppText}</div>
           <div class="edit-hint">tryck för att redigera</div>
         </div>
       </div>`;
