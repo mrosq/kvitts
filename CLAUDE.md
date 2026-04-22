@@ -64,6 +64,13 @@ Sanningen om vilka features som finns och vilka som är klara bor i filsystemet 
 
 När användaren säger "implementera 003" eller liknande → leta i `docs/features/` efter filen med det numret och följ den som kravspec.
 
+## Browser-automation / dogfooding
+
+När du kör `agent-browser` (screenshots, dogfood-skillen, exploratory testing) —
+lägg ALLT output i `agent-browser/` i repo-roten. Den mappen är gitignored.
+Använd inte default-paths som `dogfood-output/`, `screenshots/` eller liknande
+i working directory — de läcker in i status och råkar committas.
+
 ## Deploy
 
 Vercel är kopplat till `main`-branchen i GitHub-repot `mrosq/kvitts`. Ingen manuell deploy-kommando. Live-URL:en delas inte publikt (security-through-obscurity — OK eftersom data är per-användare i localStorage).
