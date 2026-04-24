@@ -1,4 +1,8 @@
 // State (N personer – se docs/features/006a). UI:t stöder N>=2.
+// Sessions – se docs/features/001-multi-session.md.
+// En session: { id, namn, skapad, reglerad }. Dess data: { personer, migId, utgifter }.
+let sessions = [];               // meta för alla sessioner
+let aktivSessionId = null;
 let personer = [];
 let migId = "p1";
 let person1 = "";
@@ -125,20 +129,151 @@ function migreraTillNPersoner() {
   }
 }
 
+// SESSIONS
+function laddaSessionsMeta() {
+  try {
+    sessions = JSON.parse(localStorage.getItem("kvitts_sessions") || "[]");
+  } catch (_) { sessions = []; }
+  aktivSessionId = localStorage.getItem("kvitts_aktiv") || null;
+}
+
+function sparaSessionsMeta() {
+  localStorage.setItem("kvitts_sessions", JSON.stringify(sessions));
+  if (aktivSessionId) localStorage.setItem("kvitts_aktiv", aktivSessionId);
+  else localStorage.removeItem("kvitts_aktiv");
+}
+
+function sessionDataKey(id) { return "kvitts_session_" + id; }
+
+function laddaSessionsData(id) {
+  try {
+    const raw = localStorage.getItem(sessionDataKey(id));
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (_) { return null; }
+}
+
+function sparaAktivSessionsData() {
+  if (!aktivSessionId) return;
+  const data = { personer, migId, utgifter };
+  localStorage.setItem(sessionDataKey(aktivSessionId), JSON.stringify(data));
+}
+
+function unikaNamn(basnamn) {
+  const finns = new Set(sessions.map(s => s.namn));
+  if (!finns.has(basnamn)) return basnamn;
+  for (let i = 1; i < 1000; i++) {
+    const kand = basnamn + " (" + i + ")";
+    if (!finns.has(kand)) return kand;
+  }
+  return basnamn + " " + Date.now();
+}
+
+function skapaSession(namn, sessionPersoner, sessionMigId, sessionUtgifter) {
+  const id = "s" + Date.now() + "_" + Math.floor(Math.random() * 10000);
+  const session = {
+    id,
+    namn: unikaNamn(namn || "Min lista"),
+    skapad: new Date().toISOString(),
+    reglerad: false,
+  };
+  sessions.push(session);
+  localStorage.setItem(sessionDataKey(id), JSON.stringify({
+    personer: sessionPersoner,
+    migId: sessionMigId,
+    utgifter: sessionUtgifter || [],
+  }));
+  sparaSessionsMeta();
+  return session;
+}
+
+function vaxlaTillSession(id) {
+  const session = sessions.find(s => s.id === id);
+  if (!session) return;
+  const data = laddaSessionsData(id);
+  if (!data) return;
+  aktivSessionId = id;
+  personer = data.personer || [];
+  migId = data.migId || "p1";
+  utgifter = data.utgifter || [];
+  syncaPersonAlias();
+  sparaSessionsMeta();
+  visaApp();
+}
+
+function raderaSession(id) {
+  sessions = sessions.filter(s => s.id !== id);
+  localStorage.removeItem(sessionDataKey(id));
+  if (aktivSessionId === id) aktivSessionId = null;
+  sparaSessionsMeta();
+}
+
+function aktivSession() {
+  return sessions.find(s => s.id === aktivSessionId) || null;
+}
+
+function aktivArReglerad() {
+  const s = aktivSession();
+  return !!(s && s.reglerad);
+}
+
+// Migrerar pre-sessions-data till en första session. Körs en gång.
+function migreraTillSessions() {
+  if (localStorage.getItem("kvitts_sessions")) return;
+  const rawPersoner = localStorage.getItem("kvitts_personer");
+  if (!rawPersoner) {
+    // Ingen data alls → tom sessions-lista, onboarding tar vid.
+    localStorage.setItem("kvitts_sessions", "[]");
+    return;
+  }
+  let gamlaPersoner = [];
+  try { gamlaPersoner = JSON.parse(rawPersoner) || []; } catch (_) { gamlaPersoner = []; }
+  const gammalMig = localStorage.getItem("kvitts_person_mig") || "p1";
+  let gamlaUtg = [];
+  try { gamlaUtg = JSON.parse(localStorage.getItem("kvitts_utgifter") || "[]") || []; } catch (_) { gamlaUtg = []; }
+
+  sessions = [];
+  aktivSessionId = null;
+  const session = skapaSession("Min lista", gamlaPersoner, gammalMig, gamlaUtg);
+  aktivSessionId = session.id;
+  sparaSessionsMeta();
+
+  // Rensa gamla top-level-nycklar — de lever nu inuti session-blobben.
+  localStorage.removeItem("kvitts_personer");
+  localStorage.removeItem("kvitts_person_mig");
+  localStorage.removeItem("kvitts_utgifter");
+}
+
 // INIT
 function init() {
   migreraGamlaNycklar();
   migreraTillNPersoner();
-  const rawPersoner = localStorage.getItem("kvitts_personer");
-  if (rawPersoner) {
-    personer = JSON.parse(rawPersoner);
-    migId = localStorage.getItem("kvitts_person_mig") || "p1";
-    syncaPersonAlias();
-    utgifter = JSON.parse(localStorage.getItem("kvitts_utgifter") || "[]");
-    visaApp();
-  } else {
-    visaSkarm1();
+  migreraTillSessions();
+  laddaSessionsMeta();
+
+  // Välj en aktiv session om möjligt
+  if (aktivSessionId && !sessions.find(s => s.id === aktivSessionId)) {
+    aktivSessionId = null;
   }
+  if (!aktivSessionId && sessions.length > 0) {
+    // Föredra pågående om finns, annars första
+    const pagaende = sessions.find(s => !s.reglerad);
+    aktivSessionId = (pagaende || sessions[0]).id;
+    sparaSessionsMeta();
+  }
+
+  if (aktivSessionId) {
+    const data = laddaSessionsData(aktivSessionId);
+    if (data) {
+      personer = data.personer || [];
+      migId = data.migId || "p1";
+      utgifter = data.utgifter || [];
+      syncaPersonAlias();
+      visaApp();
+      return;
+    }
+  }
+  visaSkarm1();
 }
 
 // INTRO-SKÄRMAR
@@ -214,10 +349,11 @@ function sparaSetup() {
   personer = [{ id: "p1", namn: person1 }];
   namn.forEach((n, i) => personer.push({ id: "p" + (i + 2), namn: n }));
   migId = "p1";
-  localStorage.setItem("kvitts_personer", JSON.stringify(personer));
-  localStorage.setItem("kvitts_person_mig", migId);
-  localStorage.removeItem("kvitts_person1");
   utgifter = [];
+  localStorage.removeItem("kvitts_person1");
+  const session = skapaSession("Min lista", personer, migId, utgifter);
+  aktivSessionId = session.id;
+  sparaSessionsMeta();
   visaApp();
 }
 
@@ -231,7 +367,15 @@ function visaApp() {
   if (andra.length === 1) subtitle = person1 + " & " + andra[0].namn;
   else if (andra.length === 2) subtitle = person1 + ", " + andra[0].namn + " & " + andra[1].namn;
   else subtitle = person1 + " & " + andra.length + " andra";
+  const s = aktivSession();
+  if (s) subtitle = s.namn + " · " + subtitle;
   document.getElementById("app-subtitle").textContent = subtitle;
+
+  // Read-only-läge för reglerade sessioner
+  const reglerad = aktivArReglerad();
+  document.getElementById("reglerad-banner").style.display = reglerad ? "block" : "none";
+  document.getElementById("ny-utgift-rubrik").style.display = reglerad ? "none" : "block";
+  document.getElementById("ny-utgift-kort").style.display = reglerad ? "none" : "block";
 
   populeraBetalarDropdowns();
 
@@ -489,6 +633,8 @@ function laggTillUtgift() {
 
 // DETALJER - öppna
 function oppnaDetaljer(id) {
+  // Reglerade sessioner: visning är read-only, inga detaljer att redigera.
+  if (aktivArReglerad()) return;
   const u = utgifter.find(x => x.id === id);
   if (!u) return;
   editId = id;
@@ -683,7 +829,7 @@ function visaRegleraModal() {
 
   let html;
   if (Math.abs(saldoMig) < 0.01) {
-    html = "Nollställer saldot och arkiverar alla utgifter.";
+    html = "Sessionen markeras som reglerad och flyttas till historiken.";
   } else {
     const rader = parSaldon
       .filter(({ netto }) => Math.abs(netto) >= 0.01)
@@ -695,21 +841,45 @@ function visaRegleraModal() {
           ? `<strong>${namn}</strong> betalar dig <strong>${belopp} kr</strong>`
           : `Du betalar <strong>${namn}</strong> <strong>${belopp} kr</strong>`;
       });
-    html = rader.join("<br>") + "<br><br>Bekräfta för att reglera?";
+    html = rader.join("<br>") + "<br><br>När ni gjort upp: bekräfta för att markera sessionen som reglerad.";
   }
   document.getElementById("reglera-text").innerHTML = html;
   document.getElementById("reglera-modal").classList.add("visa");
 }
 function stangModal(id) { document.getElementById(id).classList.remove("visa"); }
-function reglera() { utgifter = []; spara(); uppdatera(); stangModal("reglera-modal"); }
+function reglera() {
+  const s = aktivSession();
+  if (s) {
+    s.reglerad = true;
+    sparaSessionsMeta();
+  }
+  stangModal("reglera-modal");
+  // Växla till nästa pågående om det finns; annars stanna kvar i read-only-läge.
+  const nastaPagaende = sessions.find(x => !x.reglerad && x.id !== s?.id);
+  if (nastaPagaende) {
+    vaxlaTillSession(nastaPagaende.id);
+  } else {
+    // Ingen annan pågående — visa read-only-vyn för den nyligen reglerade.
+    visaApp();
+  }
+}
 
 function sparaFil() {
-  const data = { version: 2, exporterad: new Date().toISOString(), personer, utgifter };
+  const s = aktivSession();
+  const data = {
+    version: 2,
+    exporterad: new Date().toISOString(),
+    namn: s?.namn || "Min lista",
+    reglerad: !!s?.reglerad,
+    personer,
+    utgifter,
+  };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "kvitts-" + new Date().toLocaleDateString("sv-SE") + ".json";
+  const filnamn = (s?.namn || "kvitts").replace(/[^a-zA-Z0-9åäöÅÄÖ_-]+/g, "-").replace(/^-+|-+$/g, "") || "kvitts";
+  a.download = filnamn + "-" + new Date().toLocaleDateString("sv-SE") + ".json";
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -744,17 +914,19 @@ function laddaFil(event) {
         );
         return;
       }
-      if (utgifter.length > 0 && !confirm("Detta ersätter dina nuvarande utgifter. Fortsätt?")) {
-        return;
+
+      // Säkerställ att nuvarande aktiva sessions data är sparad innan vi skapar ny.
+      sparaAktivSessionsData();
+
+      const namnFranFil = (typeof data.namn === "string" && data.namn.trim())
+        ? data.namn.trim()
+        : "Importerad " + new Date().toLocaleDateString("sv-SE");
+      const nySession = skapaSession(namnFranFil, nyaPersoner, "p1", nyaUtgifter);
+      if (data.reglerad) {
+        nySession.reglerad = true;
+        sparaSessionsMeta();
       }
-      personer = nyaPersoner;
-      utgifter = nyaUtgifter;
-      migId = "p1";
-      syncaPersonAlias();
-      localStorage.setItem("kvitts_personer", JSON.stringify(personer));
-      localStorage.setItem("kvitts_person_mig", migId);
-      spara();
-      visaApp();
+      vaxlaTillSession(nySession.id);
     } catch (err) {
       alert("Kunde inte läsa filen: " + err.message);
     }
@@ -764,10 +936,16 @@ function laddaFil(event) {
 }
 
 function spara() {
-  localStorage.setItem("kvitts_utgifter", JSON.stringify(utgifter));
+  sparaAktivSessionsData();
 }
 
 function visaMeny() {
+  renderaSessionsLista();
+  const reglerad = aktivArReglerad();
+  // Reglera-knappen visas bara när aktiv session är pågående
+  const regleraBtn = document.getElementById("meny-reglera-btn");
+  if (regleraBtn) regleraBtn.style.display = reglerad || !aktivSessionId ? "none" : "block";
+  // Spara-knappen visas om det finns utgifter i aktiv session
   document.getElementById("meny-spara-btn").style.display = utgifter.length > 0 ? "block" : "none";
   document.getElementById("meny-modal").classList.add("visa");
 }
@@ -777,5 +955,118 @@ function stangMenyVidKlickUtanfor(event) {
 function visaRegleraFranMeny() { stangModal("meny-modal"); visaRegleraModal(); }
 function laddaFilFranMeny() { stangModal("meny-modal"); document.getElementById("ladda-input").click(); }
 function sparaFilFranMeny() { sparaFil(); stangModal("meny-modal"); }
+
+// SESSIONS-UI
+function renderaSessionsLista() {
+  const pagaende = sessions.filter(s => !s.reglerad);
+  const reglerade = sessions.filter(s => s.reglerad);
+  document.getElementById("sessions-pagaende").innerHTML =
+    pagaende.map(s => sessionRadHtml(s, false)).join("") ||
+    '<div class="session-meta" style="padding:0.3rem 0">Inga pågående sessioner.</div>';
+  const reglRoot = document.getElementById("sessions-reglerade");
+  const reglSektion = document.getElementById("sessions-reglerade-sektion");
+  if (reglerade.length === 0) {
+    reglSektion.style.display = "none";
+    reglRoot.innerHTML = "";
+  } else {
+    reglSektion.style.display = "block";
+    reglRoot.innerHTML = reglerade.map(s => sessionRadHtml(s, true)).join("");
+  }
+}
+
+function sessionRadHtml(s, ärReglerad) {
+  const aktivKlass = s.id === aktivSessionId ? " aktiv" : "";
+  const aktivTagg = s.id === aktivSessionId ? '<span class="session-aktiv-tagg">aktiv</span>' : "";
+  // Hämta metadata för att visa t.ex. antal utgifter
+  const data = laddaSessionsData(s.id);
+  const antal = data?.utgifter?.length || 0;
+  const antalTxt = antal === 1 ? "1 utgift" : antal + " utgifter";
+  const raderaBtn = ärReglerad ? `
+    <button class="session-radera-btn" onclick="fragaRaderaSession('${s.id}', event)" aria-label="Ta bort">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 6h18"/>
+        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+      </svg>
+    </button>` : "";
+  return `
+    <div class="session-rad${aktivKlass}">
+      <div class="session-info">
+        <button class="session-namn-btn" onclick="vaxlaTillSessionFranMeny('${s.id}')">${esc(s.namn)}${aktivTagg}</button>
+        <div class="session-meta">${antalTxt}</div>
+      </div>
+      ${raderaBtn}
+    </div>`;
+}
+
+function vaxlaTillSessionFranMeny(id) {
+  if (id === aktivSessionId) { stangModal("meny-modal"); return; }
+  vaxlaTillSession(id);
+  stangModal("meny-modal");
+}
+
+// NY SESSION-FORM
+function visaNySessionForm() {
+  stangModal("meny-modal");
+  document.getElementById("ny-session-namn").value = "";
+  document.getElementById("ny-session-personer").innerHTML = "";
+  nySessionLaggTillPersonFalt();
+  document.getElementById("ny-session-modal").classList.add("visa");
+}
+
+function nySessionLaggTillPersonFalt() {
+  const lista = document.getElementById("ny-session-personer");
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = "Namn (t.ex. Anna)";
+  input.maxLength = 20;
+  input.style.cssText = "padding:0.75rem 0.85rem; border:1.5px solid var(--border); border-radius:10px; font-family:'DM Sans',sans-serif; font-size:0.95rem; background:var(--bg);";
+  lista.appendChild(input);
+  input.focus();
+}
+
+function skapaOchVaxlaNySession() {
+  const namn = document.getElementById("ny-session-namn").value.trim() || "Min lista";
+  const inputs = document.querySelectorAll("#ny-session-personer input");
+  const andraNamn = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
+  if (andraNamn.length === 0) { alert("Lägg till minst en person att dela utgifter med."); return; }
+
+  const migNamn = person1 || personer.find(p => p.id === migId)?.namn || "Jag";
+  const nyaPersoner = [{ id: "p1", namn: migNamn }];
+  andraNamn.forEach((n, i) => nyaPersoner.push({ id: "p" + (i + 2), namn: n }));
+
+  const session = skapaSession(namn, nyaPersoner, "p1", []);
+  stangModal("ny-session-modal");
+  vaxlaTillSession(session.id);
+}
+
+// RADERA SESSION
+let raderaSessionId = null;
+function fragaRaderaSession(id, event) {
+  if (event) event.stopPropagation();
+  const s = sessions.find(x => x.id === id);
+  if (!s) return;
+  raderaSessionId = id;
+  document.getElementById("radera-session-text").innerHTML =
+    `Ta bort sessionen <strong>${esc(s.namn)}</strong>? Detta går inte att ångra.`;
+  stangModal("meny-modal");
+  document.getElementById("radera-session-modal").classList.add("visa");
+}
+function bekraftaRaderaSession() {
+  if (!raderaSessionId) return;
+  const blevAktivBorttagen = raderaSessionId === aktivSessionId;
+  raderaSession(raderaSessionId);
+  raderaSessionId = null;
+  stangModal("radera-session-modal");
+  if (blevAktivBorttagen) {
+    // Välj ny aktiv eller hamna i onboarding
+    const nyAktiv = sessions.find(s => !s.reglerad) || sessions[0];
+    if (nyAktiv) { vaxlaTillSession(nyAktiv.id); return; }
+    personer = []; utgifter = []; migId = "p1";
+    visaSkarm2();
+    return;
+  }
+  visaMeny();
+}
 
 init();

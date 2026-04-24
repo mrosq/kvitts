@@ -1,7 +1,17 @@
 # 001 – Multi-session
 
-**Status:** open
+**Status:** done
 **Skapad:** 2026-04-18
+**Levererad:** 2026-04-24
+
+## Levererat
+
+- Datamodell: `kvitts_sessions` (meta), `kvitts_session_<id>` (data), `kvitts_aktiv`. Migration från pre-sessions-struktur.
+- Sessionshantering i inställningar: sektioner **Pågående** och **Reglerade**. Växling, skapande via ＋-rad, radering av reglerade sessioner via papperskorg-ikon.
+- Reglera markerar aktiv session som `reglerad: true` (nollställer inte utgifterna). Växlar till nästa pågående om finns, annars stannar i read-only.
+- Read-only-läge för reglerade: banner, dold "Ny utgift"-sektion, klick på historikrad öppnar ingen detaljvy.
+- Spara/ladda fil: `version: 2` inkluderar `namn` + `reglerad`. Ladda fil skapar **ny** session (v1-filer får namnet "Importerad <datum>"). Nuvarande session sparas innan växling.
+- Sessionsnamn unika via kollisionsräknare ("Min lista", "Min lista (1)", osv).
 
 ## Varför
 

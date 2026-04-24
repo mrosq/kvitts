@@ -237,6 +237,50 @@
   }
   .meny-rad:active { border-color: var(--ink); }
 
+  .sessions-sektion { margin-bottom: 1rem; }
+  .sessions-rubrik {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); margin-bottom: 0.4rem;
+  }
+  .sessions-lista { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.4rem; }
+  .session-rad {
+    display: flex; align-items: center; gap: 0.5rem;
+    background: var(--bg); border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 0.7rem 0.9rem;
+  }
+  .session-rad.aktiv { border-color: var(--ink); }
+  .session-namn-btn {
+    flex: 1; background: none; border: none; text-align: left;
+    font-family: 'DM Sans', sans-serif; font-size: 0.95rem; color: var(--ink);
+    cursor: pointer; padding: 0; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .session-rad.aktiv .session-namn-btn { font-weight: 500; }
+  .session-aktiv-tagg {
+    font-size: 0.65rem; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.08em; margin-left: 0.4rem;
+  }
+  .session-meta { font-size: 0.72rem; color: var(--muted); margin-top: 0.15rem; }
+  .session-info { flex: 1; min-width: 0; }
+  .session-radera-btn {
+    background: #fde8e4; color: var(--accent); border: none;
+    border-radius: 8px; padding: 0.4rem 0.55rem; cursor: pointer;
+    display: inline-flex; align-items: center;
+  }
+  .sessions-ny-rad {
+    width: 100%; padding: 0.7rem 0.9rem; text-align: left;
+    background: var(--card); border: 1.5px dashed var(--border);
+    border-radius: 10px; font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem; color: var(--muted); cursor: pointer;
+  }
+  .sessions-ny-rad:hover { color: var(--ink); border-color: var(--ink); }
+
+  .reglerad-banner {
+    background: #f0ebe2; border: 1px solid var(--border);
+    border-radius: 10px; padding: 0.7rem 0.9rem; margin-bottom: 1rem;
+    font-size: 0.85rem; color: var(--muted);
+  }
+
   .fordelning-lista {
     background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
     padding: 0.2rem 0.9rem; margin-bottom: 1rem;
@@ -311,13 +355,17 @@
   </div>
   <p class="subtitle" id="app-subtitle"></p>
 
+  <div class="reglerad-banner" id="reglerad-banner" style="display:none">
+    ✓ Denna session är reglerad och visas som historik. Växla till en pågående session i <strong>inställningar</strong> för att fortsätta registrera utgifter.
+  </div>
+
   <div class="saldo-kort" id="saldo-kort" onclick="visaSaldoDetalj()">
     <div class="saldo-label" id="saldo-label">Aktuellt saldo</div>
     <div class="saldo-belopp" id="saldo-belopp">0 kr</div>
     <div class="saldo-text" id="saldo-text"></div>
   </div>
-  <div class="sektion-rubrik">Ny utgift</div>
-  <div class="kort">
+  <div class="sektion-rubrik" id="ny-utgift-rubrik">Ny utgift</div>
+  <div class="kort" id="ny-utgift-kort">
     <div class="form-rad">
       <input type="number" id="belopp" placeholder="Belopp (kr)" min="0" step="0.01" style="flex:1; min-width:0;" oninput="uppdateraLaggTillKnapp()"/>
       <select id="betalare" style="flex:1; min-width:0;"></select>
@@ -350,8 +398,20 @@
 <div class="modal-overlay" id="meny-modal" onclick="stangMenyVidKlickUtanfor(event)">
   <div class="modal">
     <h2>Inställningar</h2>
-    <div class="meny-lista">
-      <button class="meny-rad" onclick="visaRegleraFranMeny()">✓ Markera som reglerat</button>
+
+    <div class="sessions-sektion">
+      <div class="sessions-rubrik">Pågående</div>
+      <div class="sessions-lista" id="sessions-pagaende"></div>
+      <button class="sessions-ny-rad" onclick="visaNySessionForm()">＋ Ny session</button>
+    </div>
+
+    <div class="sessions-sektion" id="sessions-reglerade-sektion">
+      <div class="sessions-rubrik">Reglerade</div>
+      <div class="sessions-lista" id="sessions-reglerade"></div>
+    </div>
+
+    <div class="meny-lista" id="meny-aktiv-sektion">
+      <button class="meny-rad" id="meny-reglera-btn" onclick="visaRegleraFranMeny()">✓ Markera som reglerat</button>
       <div style="display:flex; gap:0.5rem;">
         <button class="meny-rad" style="flex:1" onclick="laddaFilFranMeny()">⬆ Ladda fil</button>
         <button class="meny-rad" id="meny-spara-btn" style="display:none; flex:1" onclick="sparaFilFranMeny()">⬇ Spara fil</button>
@@ -359,6 +419,35 @@
     </div>
     <div class="modal-knappar">
       <button class="btn-avbryt" style="flex:none; width:100%;" onclick="stangModal('meny-modal')">Stäng</button>
+    </div>
+  </div>
+</div>
+
+<!-- NY SESSION MODAL -->
+<div class="modal-overlay" id="ny-session-modal">
+  <div class="modal">
+    <h2>Ny session</h2>
+    <p class="modal-sub">Ge sessionen ett namn och ange vem du delar utgifter med.</p>
+    <div class="form-rad">
+      <input type="text" id="ny-session-namn" placeholder="Namn (t.ex. Spanien-resan)" maxlength="40" style="flex:1; min-width:0;"/>
+    </div>
+    <div id="ny-session-personer" style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom:0.5rem;"></div>
+    <button class="btn-lagg-till-person" onclick="nySessionLaggTillPersonFalt()">+ Lägg till person</button>
+    <div class="modal-knappar">
+      <button class="btn-avbryt" onclick="stangModal('ny-session-modal')">Avbryt</button>
+      <button class="btn-bekrafta" id="btn-skapa-session" onclick="skapaOchVaxlaNySession()">Skapa</button>
+    </div>
+  </div>
+</div>
+
+<!-- RADERA SESSION BEKRÄFTELSE -->
+<div class="modal-overlay" id="radera-session-modal">
+  <div class="modal">
+    <h2>Ta bort session</h2>
+    <p id="radera-session-text"></p>
+    <div class="modal-knappar">
+      <button class="btn-avbryt" onclick="stangModal('radera-session-modal')">Avbryt</button>
+      <button class="btn-bekrafta" style="background:var(--accent)" onclick="bekraftaRaderaSession()">Ta bort</button>
     </div>
   </div>
 </div>
