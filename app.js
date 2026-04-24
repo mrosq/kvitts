@@ -820,30 +820,73 @@ function visaSaldoDetalj() {
   }
 
   lista.innerHTML = html;
+
+  const visaMinimera = personer.length > 2 && minimeradeOverforingar(utgifter, personer).length > 0;
+  document.getElementById("saldo-detalj-minimera-wrap").style.display = visaMinimera ? "" : "none";
+
   document.getElementById("saldo-detalj-modal").classList.add("visa");
 }
 
-function visaRegleraModal() {
-  const parSaldon = raknaParSaldon(utgifter, migId, personer);
-  const saldoMig = raknaUtSaldo(utgifter, personer)[migId] || 0;
+function gaTillMinimera() {
+  stangModal("saldo-detalj-modal");
+  visaRegleraModal({ initialtLage: "minimera" });
+}
 
-  let html;
-  if (Math.abs(saldoMig) < 0.01) {
-    html = "Sessionen markeras som reglerad och flyttas till historiken.";
+let _regleraLage = "parvisa";
+
+function _renderaRegleraLista() {
+  const saldoMig = raknaUtSaldo(utgifter, personer)[migId] || 0;
+  const allaNetton = Object.values(raknaUtSaldo(utgifter, personer));
+  const nollat = allaNetton.every(v => Math.abs(v) < 0.01);
+
+  const toggleWrap = document.getElementById("reglera-toggle-wrap");
+  const lista = document.getElementById("reglera-lista");
+
+  if (nollat) {
+    toggleWrap.style.display = "none";
+    lista.innerHTML = "<p>Sessionen markeras som reglerad och flyttas till historiken.</p>";
+    return;
+  }
+
+  if (personer.length > 2) {
+    toggleWrap.style.display = "";
+    document.getElementById("reglera-btn-minimera").classList.toggle("aktiv", _regleraLage === "minimera");
+    document.getElementById("reglera-btn-parvisa").classList.toggle("aktiv", _regleraLage === "parvisa");
   } else {
-    const rader = parSaldon
+    toggleWrap.style.display = "none";
+  }
+
+  let rader = [];
+  if (_regleraLage === "minimera") {
+    rader = minimeradeOverforingar(utgifter, personer).map(({ fran, till, belopp }) => {
+      const franNamn = fran === migId ? "Du" : `<strong>${esc(personer.find(p => p.id === fran)?.namn || fran)}</strong>`;
+      const tillNamn = till === migId ? "dig" : `<strong>${esc(personer.find(p => p.id === till)?.namn || till)}</strong>`;
+      const beloppStr = belopp.toFixed(2).replace(".", ",");
+      return `${franNamn} betalar ${tillNamn} <strong>${beloppStr} kr</strong>`;
+    });
+  } else {
+    rader = raknaParSaldon(utgifter, migId, personer)
       .filter(({ netto }) => Math.abs(netto) >= 0.01)
       .map(({ id, netto }) => {
-        const annan = personer.find(p => p.id === id);
-        const namn = esc(annan?.namn || id);
-        const belopp = Math.abs(netto).toFixed(2).replace(".",",");
+        const namn = esc(personer.find(p => p.id === id)?.namn || id);
+        const beloppStr = Math.abs(netto).toFixed(2).replace(".", ",");
         return netto > 0
-          ? `<strong>${namn}</strong> betalar dig <strong>${belopp} kr</strong>`
-          : `Du betalar <strong>${namn}</strong> <strong>${belopp} kr</strong>`;
+          ? `<strong>${namn}</strong> betalar dig <strong>${beloppStr} kr</strong>`
+          : `Du betalar <strong>${namn}</strong> <strong>${beloppStr} kr</strong>`;
       });
-    html = rader.join("<br>") + "<br><br>När ni gjort upp: bekräfta för att markera sessionen som reglerad.";
   }
-  document.getElementById("reglera-text").innerHTML = html;
+
+  lista.innerHTML = rader.join("<br>") + "<br><br>När ni gjort upp: bekräfta för att markera sessionen som reglerad.";
+}
+
+function byttRegleraLage(lage) {
+  _regleraLage = lage;
+  _renderaRegleraLista();
+}
+
+function visaRegleraModal(opts) {
+  _regleraLage = (opts && opts.initialtLage) ? opts.initialtLage : (personer.length > 2 ? "minimera" : "parvisa");
+  _renderaRegleraLista();
   document.getElementById("reglera-modal").classList.add("visa");
 }
 function stangModal(id) { document.getElementById(id).classList.remove("visa"); }

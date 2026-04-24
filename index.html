@@ -216,6 +216,11 @@
     flex: 1; padding: 0.85rem; background: var(--green); color: #fff; border: none;
     border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 500; cursor: pointer;
   }
+  .btn-lank {
+    background: none; border: none; color: var(--ink); opacity: 0.55; font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem; cursor: pointer; padding: 0.25rem 0; text-decoration: underline;
+  }
+  .btn-lank:hover { opacity: 0.9; }
   .btn-radera {
     padding: 0.6rem 0.9rem; background: #fde8e4; color: var(--accent); border: none;
     border-radius: 10px; cursor: pointer;
@@ -457,6 +462,9 @@
   <div class="modal">
     <h2>Saldo</h2>
     <div id="saldo-detalj-lista"></div>
+    <div id="saldo-detalj-minimera-wrap" style="display:none; margin-bottom:8px; text-align:center;">
+      <button class="btn-lank" onclick="gaTillMinimera()">Minimera överföringar →</button>
+    </div>
     <div class="modal-knappar">
       <button class="btn-avbryt" style="flex:none; width:100%;" onclick="stangModal('saldo-detalj-modal')">Stäng</button>
     </div>
@@ -467,7 +475,13 @@
 <div class="modal-overlay" id="reglera-modal">
   <div class="modal">
     <h2>Reglera skuld</h2>
-    <p id="reglera-text"></p>
+    <div id="reglera-toggle-wrap" style="display:none; margin-bottom:12px;">
+      <div class="split-toggle">
+        <button id="reglera-btn-minimera" onclick="byttRegleraLage('minimera')">Minimera överföringar</button>
+        <button id="reglera-btn-parvisa" onclick="byttRegleraLage('parvisa')">Parvisa saldon</button>
+      </div>
+    </div>
+    <div id="reglera-lista"></div>
     <div class="modal-knappar">
       <button class="btn-avbryt" onclick="stangModal('reglera-modal')">Avbryt</button>
       <button class="btn-bekrafta" onclick="reglera()">Reglera</button>

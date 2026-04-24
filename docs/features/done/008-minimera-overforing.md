@@ -96,4 +96,9 @@ smidigare: Se detalj → tryck "Minimera" → följ planen → bekräfta.
 
 ## När levererad
 
-*(Fylls i efter leverans.)*
+Levererad 2026-04-24. Implementerades exakt som specad:
+
+- `minimeradeOverforingar(utgifter, personer)` i `logic.js` — greedy min-cash-flow på nettosaldon från `raknaUtSaldo`, returnerar `{fran, till, belopp}[]`.
+- Reglera-modalen utökades med toggle "Minimera överföringar" / "Parvisa saldon" (default Minimera vid N>2, ingen toggle vid N=2). Nollfall visar bara bekräftelstext.
+- Saldo-detalj-modalen fick en diskret "Minimera överföringar →"-länk som hoppar direkt till optimerade läget (synlig bara vid N>2 med obalans).
+- 7 nya enhetstester i `logic.test.js`, alla gröna (60/60 totalt).

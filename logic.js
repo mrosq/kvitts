@@ -120,6 +120,47 @@ function egnaInfoText(belopp, egna = {}, deltagare = []) {
 }
 
 /**
+ * Greedy min-cash-flow: beräknar en optimerad lista av överföringar som nollar
+ * alla nettosaldon. Ger alltid ≤ N−1 överföringar.
+ *
+ * @param {Array} utgifter
+ * @param {Array<{id: string}>} personer
+ * @returns {Array<{fran: string, till: string, belopp: number}>}
+ */
+function minimeradeOverforingar(utgifter, personer) {
+  const EPS = 0.01;
+  const saldo = raknaUtSaldo(utgifter, personer);
+
+  const kreditorer = [];
+  const debitorer = [];
+  for (const [id, netto] of Object.entries(saldo)) {
+    if (netto > EPS) kreditorer.push({ id, netto });
+    else if (netto < -EPS) debitorer.push({ id, skuld: -netto });
+  }
+
+  kreditorer.sort((a, b) => b.netto - a.netto);
+  debitorer.sort((a, b) => b.skuld - a.skuld);
+
+  const overforingar = [];
+  while (kreditorer.length > 0 && debitorer.length > 0) {
+    const k = kreditorer[0];
+    const d = debitorer[0];
+    const belopp = Math.min(k.netto, d.skuld);
+    overforingar.push({
+      fran: d.id,
+      till: k.id,
+      belopp: Math.round(belopp * 100) / 100,
+    });
+    k.netto -= belopp;
+    d.skuld -= belopp;
+    if (k.netto < EPS) kreditorer.shift();
+    if (d.skuld < EPS) debitorer.shift();
+  }
+
+  return overforingar;
+}
+
+/**
  * Migrera en utgift från gammalt 2-personers-format till N-personers-format.
  * Idempotent — returnerar objektet oförändrat om det redan är migrerat.
  *
@@ -143,5 +184,6 @@ if (typeof module !== "undefined") {
     raknaParSaldon,
     egnaInfoText,
     migreraUtgift,
+    minimeradeOverforingar,
   };
 }

@@ -6,6 +6,7 @@ const {
   raknaParSaldon,
   egnaInfoText,
   migreraUtgift,
+  minimeradeOverforingar,
 } = require("./logic");
 
 // ---------------------------------------------------------------------------
@@ -463,6 +464,85 @@ describe("migreraUtgift", () => {
     };
     const resultat = migreraUtgift(nyttFormat);
     assert.equal(resultat, nyttFormat);
+  });
+});
+
+// ===========================================================================
+// minimeradeOverforingar — greedy min-cash-flow
+// ===========================================================================
+describe("minimeradeOverforingar", () => {
+  it("tom lista → inga överföringar", () => {
+    assert.deepEqual(minimeradeOverforingar([], P2), []);
+  });
+
+  it("redan nollat → inga överföringar", () => {
+    const utg = [
+      { betalare_id: "p1", belopp: 100, fordelning: { p1: 50, p2: 50 } },
+      { betalare_id: "p2", belopp: 100, fordelning: { p1: 50, p2: 50 } },
+    ];
+    assert.deepEqual(minimeradeOverforingar(utg, P2), []);
+  });
+
+  it("N=2, en skuld: 1 överföring", () => {
+    const utg = [
+      { betalare_id: "p1", belopp: 100, fordelning: { p1: 50, p2: 50 } },
+    ];
+    const r = minimeradeOverforingar(utg, P2);
+    assert.equal(r.length, 1);
+    assert.equal(r[0].fran, "p2");
+    assert.equal(r[0].till, "p1");
+    assertClose(r[0].belopp, 50, "belopp");
+  });
+
+  it("N=3 exempel från spec: 2 överföringar (netto +250/−50/−200)", () => {
+    // p1=mig (+250), p2 (−50), p3 (−200)
+    // p1 betalar 300, fördelat p1:50 p2:50 p3:200
+    // → p1 netto = 300-50 = +250, p2 = 0-50 = -50, p3 = 0-200 = -200
+    const utg = [
+      { betalare_id: "p1", belopp: 300, fordelning: { p1: 50, p2: 50, p3: 200 } },
+    ];
+    const r = minimeradeOverforingar(utg, P3);
+    assert.equal(r.length, 2, "ska bli 2 överföringar");
+    // alla "till" ska vara p1 (den enda kreditorn)
+    assert.ok(r.every(x => x.till === "p1"), "alla betalar till p1");
+    const p2rad = r.find(x => x.fran === "p2");
+    const p3rad = r.find(x => x.fran === "p3");
+    assert.ok(p2rad, "p2 finns");
+    assert.ok(p3rad, "p3 finns");
+    assertClose(p2rad.belopp, 50, "p2 betalar 50");
+    assertClose(p3rad.belopp, 200, "p3 betalar 200");
+  });
+
+  it("N=3 cirkulärskuld kvittas ner: max 2 överföringar", () => {
+    // p1→p2: 100, p2→p3: 100, p3→p1: 100 — netto alla 0
+    const utg = [
+      { betalare_id: "p1", belopp: 100, fordelning: { p2: 100 } },
+      { betalare_id: "p2", belopp: 100, fordelning: { p3: 100 } },
+      { betalare_id: "p3", belopp: 100, fordelning: { p1: 100 } },
+    ];
+    const r = minimeradeOverforingar(utg, P3);
+    assert.equal(r.length, 0, "netto noll → inga överföringar");
+  });
+
+  it("N=4, en person med netto 0 ignoreras", () => {
+    const P4 = [{ id: "p1" }, { id: "p2" }, { id: "p3" }, { id: "p4" }];
+    // p4 är inte med i något — netto 0
+    const utg = [
+      { betalare_id: "p1", belopp: 90, fordelning: { p1: 30, p2: 30, p3: 30 } },
+    ];
+    const r = minimeradeOverforingar(utg, P4);
+    assert.equal(r.length, 2);
+    assert.ok(r.every(x => x.fran !== "p4" && x.till !== "p4"), "p4 ska inte vara med");
+  });
+
+  it("avrundning: tredelning av 100 — summan av överföringar ≈ nettosaldo", () => {
+    const utg = [
+      { betalare_id: "p1", belopp: 100, fordelning: { p1: 100/3, p2: 100/3, p3: 100/3 } },
+    ];
+    const r = minimeradeOverforingar(utg, P3);
+    const totalBetalt = r.reduce((s, x) => s + x.belopp, 0);
+    // p1:s netto = +100 - 100/3 ≈ 66.67, varje annan betalar ≈ 33.33
+    assertClose(totalBetalt, 200/3, "summabelopp", 0.02);
   });
 });
 
