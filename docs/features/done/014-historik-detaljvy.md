@@ -1,7 +1,30 @@
 # 014 – Historik: detaljvy istället för edit-modal
 
-**Status:** open
+**Status:** done
 **Skapad:** 2026-04-21
+**Levererad:** 2026-04-24
+
+## Vad byggdes
+
+- Historik-kortet: `fordelningText` borttagen; meta-raden visar bara datum.
+  Hint-texten ändrad från "tryck för att redigera" → "tryck för detaljer".
+- Edit-modalen döpt till "Detaljer" (rubrik).
+- Ny fördelningslista överst i modalen: en rad per person (namn + belopp),
+  med `betalade`-tagg bredvid betalaren. Nollandelar visas nedtonade.
+- Beskrivning är nu editerbart textfält (`edit-beskrivning`).
+- Datum är editerbart datum-chip med egen state (`valtEditDatum`,
+  `andraEditDatum`, `uppdateraEditDatumChip`) — parallellt med add-kontexten.
+  Parsar befintligt `datum`-fält via `parsaDatum`.
+- `oppnaEdit` → `oppnaDetaljer`. `sparaEdit` plockar upp beskrivning och
+  datum och skriver tillbaka till `utgifter[idx]`.
+- Belopp = 0 (placeholder-utgifter) fortsätter fungera: fördelningslistan
+  visar "Inget belopp angivet ännu" och Spara accepterar tomt belopp.
+
+Inga datamodell-ändringar.
+
+---
+
+## Ursprunglig spec
 
 ## Varför
 

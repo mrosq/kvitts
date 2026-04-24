@@ -217,9 +217,11 @@
     border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 500; cursor: pointer;
   }
   .btn-radera {
-    padding: 0.85rem 1rem; background: #fde8e4; color: var(--accent); border: none;
-    border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 0.95rem; cursor: pointer;
+    padding: 0.6rem 0.9rem; background: #fde8e4; color: var(--accent); border: none;
+    border-radius: 10px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
   }
+  .btn-radera svg { display: block; }
   .app-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0.2rem; }
   .app-header h1 { margin-bottom: 0; }
   .btn-meny-ikon {
@@ -234,6 +236,27 @@
     font-family: 'DM Sans', sans-serif; font-size: 0.95rem; cursor: pointer; color: var(--ink);
   }
   .meny-rad:active { border-color: var(--ink); }
+
+  .fordelning-lista {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 0.2rem 0.9rem; margin-bottom: 1rem;
+  }
+  .fordelning-rad {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.55rem 0; border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+  .fordelning-rad:last-child { border-bottom: none; }
+  .fordelning-namn { display: flex; align-items: center; gap: 0.5rem; }
+  .fordelning-betalt-tagg {
+    display: inline-block; font-size: 0.65rem; font-weight: 500;
+    padding: 0.1rem 0.5rem; border-radius: 20px;
+  }
+  .fordelning-betalt-tagg.p1 { background: #fde8e4; color: var(--accent); }
+  .fordelning-betalt-tagg.p2 { background: #e4eefb; color: var(--accent2); }
+  .fordelning-belopp { font-variant-numeric: tabular-nums; color: var(--ink); }
+  .fordelning-rad.noll .fordelning-namn,
+  .fordelning-rad.noll .fordelning-belopp { color: var(--muted); }
 </style>
 </head>
 <body>
@@ -363,24 +386,37 @@
   </div>
 </div>
 
-<!-- EDIT MODAL -->
+<!-- DETALJ MODAL -->
 <div class="modal-overlay" id="edit-modal">
   <div class="modal">
-    <h2>Redigera utgift</h2>
-    <div class="modal-sub" id="edit-rubrik"></div>
+    <h2>Detaljer</h2>
+    <div class="fordelning-lista" id="edit-fordelning-lista"></div>
+    <div class="form-rad">
+      <input type="text" id="edit-beskrivning" placeholder="Beskrivning" maxlength="60" style="flex:1; min-width:0;"/>
+    </div>
     <div class="form-rad">
       <input type="number" id="edit-belopp" placeholder="Belopp (kr)" min="0" step="0.01" style="flex:1; min-width:0;"/>
       <select id="edit-betalare" style="flex:1; min-width:0;"></select>
     </div>
     <div class="split-rad">
-      <div class="split-label">Hur delas utgiften?</div>
       <div class="split-toggle">
         <button id="edit-split-lika" onclick="valjDelasLika('edit')">Delas lika</button>
         <button id="edit-split-knapp" onclick="oppnaSplitModal('edit')">Anpassa…</button>
       </div>
+      <div class="datum-chip">
+        <button class="datum-chip-pil" id="edit-datum-pil-bak" onclick="andraEditDatum(-1)" aria-label="En dag bakåt">&#8249;</button>
+        <span class="datum-chip-text" id="edit-datum-text"></span>
+        <button class="datum-chip-pil" id="edit-datum-pil-fram" onclick="andraEditDatum(1)" aria-label="En dag framåt">&#8250;</button>
+      </div>
     </div>
     <div class="modal-knappar">
-      <button class="btn-radera" onclick="raderaUtgift()">&#128465;</button>
+      <button class="btn-radera" onclick="raderaUtgift()" aria-label="Radera">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 6h18"/>
+          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+        </svg>
+      </button>
       <button class="btn-avbryt" onclick="stangModal('edit-modal')">Avbryt</button>
       <button class="btn-bekrafta" onclick="sparaEdit()">Spara</button>
     </div>

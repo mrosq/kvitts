@@ -5,6 +5,7 @@ let person1 = "";
 let person2 = "";
 let utgifter = [];
 let valtDatum = new Date();
+let valtEditDatum = new Date();
 let editId = null;
 
 // Split-state för lägg-till-formuläret
@@ -58,6 +59,31 @@ function andradatum(steg) {
 function resetDatum() {
   valtDatum = new Date();
   uppdateraDatumChip();
+}
+
+// Parsar "YYYY-MM-DD" eller sv-SE-format ("2026-04-18" eller "2026-04-18")
+function parsaDatum(str) {
+  if (!str) return new Date();
+  const m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+  const d = new Date(str);
+  return isNaN(d) ? new Date() : d;
+}
+
+function uppdateraEditDatumChip() {
+  const diff = dagarMellan(valtEditDatum, new Date());
+  document.getElementById("edit-datum-text").textContent = datumChipText(valtEditDatum);
+  document.getElementById("edit-datum-pil-bak").hidden = diff <= -MAX_DAGAR_BAK;
+  document.getElementById("edit-datum-pil-fram").hidden = diff >= 0;
+}
+
+function andraEditDatum(steg) {
+  const ny = new Date(valtEditDatum);
+  ny.setDate(ny.getDate() + steg);
+  const diff = dagarMellan(ny, new Date());
+  if (diff > 0 || diff < -MAX_DAGAR_BAK) return;
+  valtEditDatum = ny;
+  uppdateraEditDatumChip();
 }
 
 // MIGRATIONER
@@ -461,14 +487,18 @@ function laggTillUtgift() {
   uppdatera();
 }
 
-// EDIT - öppna
-function oppnaEdit(id) {
+// DETALJER - öppna
+function oppnaDetaljer(id) {
   const u = utgifter.find(x => x.id === id);
   if (!u) return;
   editId = id;
-  document.getElementById("edit-rubrik").textContent = u.beskrivning + "  ·  " + u.datum;
-  document.getElementById("edit-belopp").value = u.belopp;
+  document.getElementById("edit-beskrivning").value = u.beskrivning || "";
+  document.getElementById("edit-belopp").value = u.belopp || "";
   document.getElementById("edit-betalare").value = u.betalare_id;
+
+  valtEditDatum = parsaDatum(u.datum);
+  uppdateraEditDatumChip();
+  renderaFordelningslista(u);
 
   if (u.splitTyp) {
     editSplitTyp = u.splitTyp;
@@ -487,19 +517,49 @@ function oppnaEdit(id) {
   document.getElementById("edit-modal").classList.add("visa");
 }
 
-// EDIT - spara
+function renderaFordelningslista(u) {
+  const container = document.getElementById("edit-fordelning-lista");
+  const harBelopp = u.belopp > 0 && u.fordelning;
+  if (!harBelopp) {
+    container.innerHTML = '<div class="fordelning-rad noll"><span class="fordelning-namn">Inget belopp angivet ännu</span></div>';
+    return;
+  }
+  container.innerHTML = personer.map(p => {
+    const andel = u.fordelning[p.id] || 0;
+    const nollKlass = andel < 0.001 ? " noll" : "";
+    const taggKlass = u.betalare_id === migId ? "p1" : "p2";
+    const tagg = p.id === u.betalare_id ? `<span class="fordelning-betalt-tagg ${taggKlass}">betalade</span>` : "";
+    return `
+      <div class="fordelning-rad${nollKlass}">
+        <span class="fordelning-namn">${esc(p.namn)}${tagg}</span>
+        <span class="fordelning-belopp">${andel.toFixed(2).replace(".",",")} kr</span>
+      </div>`;
+  }).join("");
+}
+
+// DETALJER - spara
 function sparaEdit() {
+  const besk = document.getElementById("edit-beskrivning").value.trim();
   const bel = parseFloat(document.getElementById("edit-belopp").value);
   const betalare_id = document.getElementById("edit-betalare").value;
-  if (isNaN(bel) || bel <= 0) { alert("Ange ett giltigt belopp."); return; }
-  const deltagare = editSplitTyp === "jamnt" ? deltagareIds() : editSplitInkluderade;
-  const logikTyp = editSplitTyp === "delmangd" ? "jamnt" : editSplitTyp;
-  const fordelning = raknaDel(bel, logikTyp, deltagare, editSplitEgna);
-  if (!fordelning) { alert("Egna kostnader överstiger totalt belopp."); return; }
+  if (!besk) { alert("Fyll i beskrivning."); return; }
+  const harBelopp = !isNaN(bel) && bel > 0;
+  let fordelning = {};
+  if (harBelopp) {
+    const deltagare = editSplitTyp === "jamnt" ? deltagareIds() : editSplitInkluderade;
+    const logikTyp = editSplitTyp === "delmangd" ? "jamnt" : editSplitTyp;
+    fordelning = raknaDel(bel, logikTyp, deltagare, editSplitEgna);
+    if (!fordelning) { alert("Egna kostnader överstiger totalt belopp."); return; }
+  }
   const idx = utgifter.findIndex(x => x.id === editId);
   if (idx !== -1) {
     utgifter[idx] = {
-      ...utgifter[idx], belopp: bel, betalare_id, fordelning,
+      ...utgifter[idx],
+      beskrivning: besk,
+      belopp: harBelopp ? bel : 0,
+      betalare_id,
+      fordelning,
+      datum: datumTillStr(valtEditDatum),
       splitTyp: editSplitTyp,
       inkluderade: editSplitInkluderade.length > 0 ? [...editSplitInkluderade] : undefined,
       egnaBelopp: editSplitTyp === "egna" ? { ...editSplitEgna } : undefined,
@@ -556,26 +616,17 @@ function uppdatera() {
     const betalareNamn = betalare?.namn || u.betalare_id;
     const badgeKlass = u.betalare_id === migId ? "p1" : "p2";
     const harBelopp = u.belopp > 0;
-    const fordelningText = harBelopp ? Object.entries(u.fordelning || {})
-      .filter(([, andel]) => andel > 0)
-      .map(([id, andel]) => {
-        const p = personer.find(x => x.id === id);
-        return esc(p?.namn || id) + ": " + andel.toFixed(2).replace(".",",") + " kr";
-      }).join(" &nbsp;·&nbsp; ") : "";
     const beloppText = harBelopp ? u.belopp.toFixed(2).replace(".",",") + " kr" : "– kr";
     return `
-      <div class="utgift-rad" onclick="oppnaEdit(${u.id})">
+      <div class="utgift-rad" onclick="oppnaDetaljer(${u.id})">
         <div class="utgift-info">
           <div class="utgift-beskrivning">${esc(u.beskrivning)}</div>
-          <div class="utgift-meta">
-            ${u.datum}<br>
-            ${fordelningText}
-          </div>
+          <div class="utgift-meta">${u.datum}</div>
           <span class="betald-badge ${badgeKlass}">Betalt av ${esc(betalareNamn)}</span>
         </div>
         <div class="utgift-belopp">
           <div class="utgift-totalt">${beloppText}</div>
-          <div class="edit-hint">tryck för att redigera</div>
+          <div class="edit-hint">tryck för detaljer</div>
         </div>
       </div>`;
   }).join("");
