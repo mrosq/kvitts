@@ -1,6 +1,6 @@
 # 004a – Rum-fundament: Supabase, routing, skapa/gå med
 
-**Status:** open
+**Status:** levererad 2026-05-14
 **Skapad:** 2026-04-24
 **Del av:** 004 (multi-user-rum via delad länk), första steget.
 
@@ -102,6 +102,10 @@ rum-läge:
 - **Avgränsning:** Ingen polling i 004a. Deltagar-listan kan vara stale
   tills 004b.
 
-## När levererad
+## Levererat
 
-Lägg till en kort sammanfattning och flytta filen till `docs/features/done/`.
+Supabase-schema (rooms, members, expenses) med öppna RLS-policies. Config via
+hårdkodad `config.js` (Alt A). Supabase-wrappers i `supabase.js`. URL-routing
+via `parseRumSokvag` i logic.js + vercel.json-rewrite. Skärm 3b ersatt med
+skapa/gå-med-flöde. Sessions utökade med `kind: "rum"`. 67/67 tester gröna.
+Header visar "0 andra" – åtgärdas i 004b med polling av members.
