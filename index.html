@@ -20,6 +20,14 @@
   input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   h1 { font-family: 'DM Serif Display', serif; font-size: 2rem; letter-spacing: -0.02em; margin-bottom: 0.2rem; }
   .subtitle { color: var(--muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
+  .subtitle.klickbar { cursor: pointer; text-decoration: underline dotted; }
+  .deltagar-chip {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    background: var(--bg); border: 1.5px solid var(--border);
+    border-radius: 20px; padding: 0.3rem 0.75rem;
+    font-size: 0.85rem; font-family: 'DM Sans', sans-serif;
+  }
+  .deltagar-chip.mig { border-color: var(--accent); color: var(--accent); }
 
   .intro-skarm {
     display: flex; flex-direction: column; align-items: center;
@@ -409,7 +417,7 @@
     <h1>Kvitts</h1>
     <button class="btn-meny-ikon" onclick="visaMeny()" title="Mer">⚙</button>
   </div>
-  <p class="subtitle" id="app-subtitle"></p>
+  <p class="subtitle" id="app-subtitle" onclick="subtitleKlick()"></p>
 
   <div class="reglerad-banner" id="reglerad-banner" style="display:none">
     ✓ Denna session är reglerad och visas som historik. Växla till en pågående session i <strong>inställningar</strong> för att fortsätta registrera utgifter.
@@ -604,6 +612,26 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- DELTAGAR-MODAL (rum-läge) -->
+<div class="modal-overlay" id="deltagare-modal" onclick="stangDeltagareModalVidKlick(event)">
+  <div class="modal">
+    <h2 id="deltagare-modal-rubrik">Deltagare</h2>
+    <div id="deltagare-chips" style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1.2rem;"></div>
+    <p style="font-size:0.8rem; color:var(--muted); margin-bottom:0.4rem;">Dela länken för att bjuda in:</p>
+    <div style="display:flex; align-items:center; gap:0.4rem; margin-bottom:1.2rem;">
+      <span id="deltagare-modal-lank" style="font-size:0.75rem; color:var(--muted); word-break:break-all; flex:1;"></span>
+      <button onclick="kopieraDeltagarLank()" aria-label="Kopiera länk" style="background:none; border:none; cursor:pointer; color:var(--muted); padding:0.2rem; flex-shrink:0;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-knappar">
+      <button class="btn-avbryt" style="flex:none; width:100%;" onclick="stangModal('deltagare-modal')">Stäng</button>
+    </div>
+  </div>
+</div>
+
 <script src="config.js"></script>
 <script src="logic.js"></script>
 <script src="supabase.js"></script>

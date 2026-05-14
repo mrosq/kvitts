@@ -67,5 +67,104 @@
     return data || [];
   }
 
-  window.KvittsSupabase = { skapaRum, haRum, gaMedIRum, hamtaDeltagare };
+  // ── Mappning DB → klient ────────────────────────────────────────────────
+  // DB: { id(uuid), room_id, beskrivning, belopp, betalare_id(uuid),
+  //       fordelning(jsonb), datum(date), lagd_till_av_id(uuid), skapad }
+  // Klient: { id, beskrivning, belopp, betalare_id, fordelning, datum,
+  //           lagd_till_av_id, splitTyp?, inkluderade?, egnaBelopp? }
+  // split-metadata (splitTyp, inkluderade, egnaBelopp) lagras som _meta i fordelning jsonb.
+  function dbTillKlient(row) {
+    const fordelning = { ...(row.fordelning || {}) };
+    const meta = fordelning._meta || {};
+    delete fordelning._meta;
+    return {
+      id: row.id,
+      beskrivning: row.beskrivning,
+      belopp: Number(row.belopp),
+      betalare_id: row.betalare_id,
+      fordelning,
+      datum: row.datum,           // "YYYY-MM-DD" från Supabase date-kolumn
+      lagd_till_av_id: row.lagd_till_av_id,
+      splitTyp: meta.splitTyp || undefined,
+      inkluderade: meta.inkluderade || undefined,
+      egnaBelopp: meta.egnaBelopp || undefined,
+    };
+  }
+
+  function klientTillDb(roomId, utgift, lagdTillAvId) {
+    const fordelning = { ...(utgift.fordelning || {}) };
+    if (utgift.splitTyp || utgift.inkluderade || utgift.egnaBelopp) {
+      fordelning._meta = {
+        splitTyp: utgift.splitTyp,
+        inkluderade: utgift.inkluderade,
+        egnaBelopp: utgift.egnaBelopp,
+      };
+    }
+    return {
+      room_id: roomId,
+      beskrivning: utgift.beskrivning,
+      belopp: utgift.belopp,
+      betalare_id: utgift.betalare_id,
+      fordelning,
+      datum: utgift.datum,
+      lagd_till_av_id: lagdTillAvId,
+    };
+  }
+
+  // ── CRUD utgifter ────────────────────────────────────────────────────────
+
+  async function hamtaUtgifter(roomId) {
+    const c = client();
+    const { data, error } = await c
+      .from("expenses")
+      .select()
+      .eq("room_id", roomId)
+      .order("skapad", { ascending: false });
+    if (error) throw error;
+    return (data || []).map(dbTillKlient);
+  }
+
+  async function laggTillUtgiftRum(roomId, utgift, lagdTillAvId) {
+    const c = client();
+    const { data, error } = await c
+      .from("expenses")
+      .insert(klientTillDb(roomId, utgift, lagdTillAvId))
+      .select()
+      .single();
+    if (error) throw error;
+    return dbTillKlient(data);
+  }
+
+  async function uppdateraUtgift(id, patch) {
+    const c = client();
+    const dbPatch = {};
+    if (patch.beskrivning !== undefined) dbPatch.beskrivning = patch.beskrivning;
+    if (patch.belopp !== undefined) dbPatch.belopp = patch.belopp;
+    if (patch.betalare_id !== undefined) dbPatch.betalare_id = patch.betalare_id;
+    if (patch.datum !== undefined) dbPatch.datum = patch.datum;
+    if (patch.fordelning !== undefined || patch.splitTyp !== undefined || patch.inkluderade !== undefined || patch.egnaBelopp !== undefined) {
+      const fordelning = { ...(patch.fordelning || {}) };
+      if (patch.splitTyp || patch.inkluderade || patch.egnaBelopp) {
+        fordelning._meta = {
+          splitTyp: patch.splitTyp,
+          inkluderade: patch.inkluderade,
+          egnaBelopp: patch.egnaBelopp,
+        };
+      }
+      dbPatch.fordelning = fordelning;
+    }
+    const { error } = await c.from("expenses").update(dbPatch).eq("id", id);
+    if (error) throw error;
+  }
+
+  async function raderaUtgiftRum(id) {
+    const c = client();
+    const { error } = await c.from("expenses").delete().eq("id", id);
+    if (error) throw error;
+  }
+
+  window.KvittsSupabase = {
+    skapaRum, haRum, gaMedIRum, hamtaDeltagare,
+    hamtaUtgifter, laggTillUtgiftRum, uppdateraUtgift, raderaUtgiftRum,
+  };
 })();

@@ -155,7 +155,9 @@ function laddaSessionsData(id) {
 
 function sparaAktivSessionsData() {
   if (!aktivSessionId) return;
-  const data = { personer, migId, utgifter };
+  // Bevara extra fält (roomId, personId, kind) som finns i befintlig data.
+  const befintlig = laddaSessionsData(aktivSessionId) || {};
+  const data = { ...befintlig, personer, migId, utgifter };
   localStorage.setItem(sessionDataKey(aktivSessionId), JSON.stringify(data));
 }
 
@@ -320,6 +322,7 @@ function visaSkarm3b() {
 function doljAllaSkärmar() {
   document.querySelectorAll(".intro-skarm").forEach(el => el.style.display = "none");
   document.getElementById("app").style.display = "none";
+  stoppPolling();
 }
 
 function sparaOchGaTillSkarm2() {
@@ -373,14 +376,24 @@ function visaApp() {
   document.getElementById("app").style.display = "block";
   syncaPersonAlias();
 
-  const andra = personer.filter(p => p.id !== migId);
-  let subtitle;
-  if (andra.length === 1) subtitle = person1 + " & " + andra[0].namn;
-  else if (andra.length === 2) subtitle = person1 + ", " + andra[0].namn + " & " + andra[1].namn;
-  else subtitle = person1 + " & " + andra.length + " andra";
   const s = aktivSession();
-  if (s) subtitle = s.namn + " · " + subtitle;
-  document.getElementById("app-subtitle").textContent = subtitle;
+  const subtitleEl = document.getElementById("app-subtitle");
+  if (s && s.kind === "rum") {
+    // Rum-header uppdateras igen av uppdateraRumHeader() efter polling-svar.
+    const antalPersoner = personer.length;
+    const personerTxt = antalPersoner === 1 ? "1 person" : antalPersoner + " personer";
+    subtitleEl.textContent = s.namn + " · " + personerTxt;
+    subtitleEl.classList.add("klickbar");
+  } else {
+    subtitleEl.classList.remove("klickbar");
+    const andra = personer.filter(p => p.id !== migId);
+    let subtitle;
+    if (andra.length === 1) subtitle = person1 + " & " + andra[0].namn;
+    else if (andra.length === 2) subtitle = person1 + ", " + andra[0].namn + " & " + andra[1].namn;
+    else subtitle = person1 + " & " + andra.length + " andra";
+    if (s) subtitle = s.namn + " · " + subtitle;
+    subtitleEl.textContent = subtitle;
+  }
 
   // Read-only-läge för reglerade sessioner
   const reglerad = aktivArReglerad();
@@ -396,7 +409,14 @@ function visaApp() {
   uppdateraSplitKnapp("add");
 
   resetDatum();
-  uppdatera();
+
+  if (s && s.kind === "rum") {
+    startaPolling();
+    refreshDeltagareOchUtgifter(true);
+  } else {
+    stoppPolling();
+    uppdatera();
+  }
 }
 
 function populeraBetalarDropdowns() {
@@ -606,7 +626,7 @@ function stangSplitModalVidKlickUtanfor(event) {
 }
 
 // LÄGG TILL
-function laggTillUtgift() {
+async function laggTillUtgift() {
   const besk = document.getElementById("beskrivning").value.trim();
   const bel = parseFloat(document.getElementById("belopp").value);
   const betalare_id = document.getElementById("betalare").value;
@@ -619,8 +639,7 @@ function laggTillUtgift() {
     fordelning = raknaDel(bel, logikTyp, deltagare, splitEgna);
     if (!fordelning) { alert("Egna kostnader överstiger totalt belopp."); return; }
   }
-  utgifter.unshift({
-    id: Date.now(),
+  const nyUtgift = {
     beskrivning: besk,
     belopp: harBelopp ? bel : 0,
     betalare_id,
@@ -629,8 +648,26 @@ function laggTillUtgift() {
     splitTyp,
     inkluderade: splitInkluderade.length > 0 ? [...splitInkluderade] : undefined,
     egnaBelopp: splitTyp === "egna" ? { ...splitEgna } : undefined,
-  });
-  spara();
+  };
+
+  const rum = aktivRumData();
+  if (rum) {
+    const btn = document.getElementById("btn-lagg-till");
+    btn.disabled = true;
+    try {
+      await KvittsSupabase.laggTillUtgiftRum(rum.roomId, nyUtgift, rum.personId);
+      await refreshUtgifter();
+    } catch (e) {
+      alert("Kunde inte spara utgiften: " + (e.message || e));
+      btn.disabled = false;
+      return;
+    }
+  } else {
+    utgifter.unshift({ id: Date.now(), ...nyUtgift });
+    spara();
+    uppdatera();
+  }
+
   document.getElementById("beskrivning").value = "";
   document.getElementById("belopp").value = "";
   document.getElementById("btn-lagg-till").disabled = true;
@@ -639,7 +676,6 @@ function laggTillUtgift() {
   splitEgna = {};
   uppdateraSplitKnapp("add");
   resetDatum();
-  uppdatera();
 }
 
 // DETALJER - öppna
@@ -695,7 +731,7 @@ function renderaFordelningslista(u) {
 }
 
 // DETALJER - spara
-function sparaEdit() {
+async function sparaEdit() {
   const besk = document.getElementById("edit-beskrivning").value.trim();
   const bel = parseFloat(document.getElementById("edit-belopp").value);
   const betalare_id = document.getElementById("edit-betalare").value;
@@ -708,27 +744,51 @@ function sparaEdit() {
     fordelning = raknaDel(bel, logikTyp, deltagare, editSplitEgna);
     if (!fordelning) { alert("Egna kostnader överstiger totalt belopp."); return; }
   }
-  const idx = utgifter.findIndex(x => x.id === editId);
-  if (idx !== -1) {
-    utgifter[idx] = {
-      ...utgifter[idx],
-      beskrivning: besk,
-      belopp: harBelopp ? bel : 0,
-      betalare_id,
-      fordelning,
-      datum: datumTillStr(valtEditDatum),
-      splitTyp: editSplitTyp,
-      inkluderade: editSplitInkluderade.length > 0 ? [...editSplitInkluderade] : undefined,
-      egnaBelopp: editSplitTyp === "egna" ? { ...editSplitEgna } : undefined,
-    };
+  const patch = {
+    beskrivning: besk,
+    belopp: harBelopp ? bel : 0,
+    betalare_id,
+    fordelning,
+    datum: datumTillStr(valtEditDatum),
+    splitTyp: editSplitTyp,
+    inkluderade: editSplitInkluderade.length > 0 ? [...editSplitInkluderade] : null,
+    egnaBelopp: editSplitTyp === "egna" ? { ...editSplitEgna } : null,
+  };
+
+  const rum = aktivRumData();
+  if (rum) {
+    try {
+      await KvittsSupabase.uppdateraUtgift(editId, patch);
+      stangModal("edit-modal");
+      await refreshUtgifter();
+    } catch (e) {
+      alert("Kunde inte uppdatera utgiften: " + (e.message || e));
+    }
+    return;
   }
+
+  const idx = utgifter.findIndex(x => x.id === editId);
+  if (idx !== -1) utgifter[idx] = { ...utgifter[idx], ...patch };
   spara();
   uppdatera();
   stangModal("edit-modal");
 }
 
-function raderaUtgift() {
+async function raderaUtgift() {
   if (!confirm("Ta bort utgiften?")) return;
+
+  const rum = aktivRumData();
+  if (rum) {
+    try {
+      await KvittsSupabase.raderaUtgiftRum(editId);
+      stangModal("edit-modal");
+      await refreshUtgifter();
+    } catch (e) {
+      alert("Kunde inte ta bort utgiften: " + (e.message || e));
+    }
+    return;
+  }
+
   utgifter = utgifter.filter(x => x.id !== editId);
   spara();
   uppdatera();
@@ -775,7 +835,7 @@ function uppdatera() {
     const harBelopp = u.belopp > 0;
     const beloppText = harBelopp ? u.belopp.toFixed(2).replace(".",",") + " kr" : "– kr";
     return `
-      <div class="utgift-rad" onclick="oppnaDetaljer(${u.id})">
+      <div class="utgift-rad" onclick="oppnaDetaljer('${u.id}')">
         <div class="utgift-info">
           <div class="utgift-beskrivning">${esc(u.beskrivning)}</div>
           <div class="utgift-meta">${u.datum}</div>
@@ -993,6 +1053,119 @@ function spara() {
   sparaAktivSessionsData();
 }
 
+// =============================================================================
+// RUM-UTGIFTER (feature 004b)
+// =============================================================================
+
+function aktivRumData() {
+  const s = aktivSession();
+  if (!s || s.kind !== "rum") return null;
+  const data = laddaSessionsData(s.id);
+  return data ? { roomId: data.roomId, personId: data.personId } : null;
+}
+
+// Uppdaterar lokal utgiftslista från Supabase och renderar om.
+async function refreshUtgifter() {
+  const rum = aktivRumData();
+  if (!rum) return;
+  try {
+    const fraBackend = await KvittsSupabase.hamtaUtgifter(rum.roomId);
+    const forut = JSON.stringify(utgifter);
+    utgifter = fraBackend;
+    sparaAktivSessionsData();
+    if (JSON.stringify(utgifter) !== forut) uppdatera();
+  } catch (e) {
+    console.error("Kunde inte hämta utgifter:", e);
+  }
+}
+
+// Hämtar även deltagare och synkar lokalt.
+async function refreshDeltagareOchUtgifter(forcera = false) {
+  const rum = aktivRumData();
+  if (!rum) return;
+  try {
+    const [fraBackend, deltagare] = await Promise.all([
+      KvittsSupabase.hamtaUtgifter(rum.roomId),
+      KvittsSupabase.hamtaDeltagare(rum.roomId),
+    ]);
+    const forutUtgifter = JSON.stringify(utgifter);
+    const forutPersoner = JSON.stringify(personer);
+    utgifter = fraBackend;
+    // Synka personer-listan med de riktiga deltagarna från backend.
+    const s = aktivSession();
+    const data = laddaSessionsData(s.id);
+    if (data) {
+      data.utgifter = utgifter;
+      data.personer = deltagare.map(m => ({ id: m.id, namn: m.namn }));
+      data.migId = rum.personId;
+      personer = data.personer;
+      migId = rum.personId;
+      syncaPersonAlias();
+      localStorage.setItem("kvitts_session_" + s.id, JSON.stringify(data));
+    }
+    const andradPersoner = forcera || JSON.stringify(personer) !== forutPersoner;
+    const andradUtgifter = forcera || JSON.stringify(utgifter) !== forutUtgifter;
+    if (andradPersoner) { uppdateraRumHeader(); populeraBetalarDropdowns(); }
+    if (andradPersoner || andradUtgifter) uppdatera();
+  } catch (e) {
+    console.error("Kunde inte hämta rum-data:", e);
+  }
+}
+
+// ── Polling ──────────────────────────────────────────────────────────────────
+let _pollingInterval = null;
+
+function startaPolling() {
+  stoppPolling();
+  _pollingInterval = setInterval(() => {
+    if (!document.hidden) refreshDeltagareOchUtgifter();
+  }, 15000);
+}
+
+function stoppPolling() {
+  if (_pollingInterval !== null) {
+    clearInterval(_pollingInterval);
+    _pollingInterval = null;
+  }
+}
+
+// ── Header för rum-läge ──────────────────────────────────────────────────────
+function uppdateraRumHeader() {
+  const s = aktivSession();
+  if (!s || s.kind !== "rum") return;
+  const antalPersoner = personer.length;
+  const personerTxt = antalPersoner === 1 ? "1 person" : antalPersoner + " personer";
+  const el = document.getElementById("app-subtitle");
+  el.textContent = s.namn + " · " + personerTxt;
+  el.classList.add("klickbar");
+}
+
+function subtitleKlick() {
+  const s = aktivSession();
+  if (s && s.kind === "rum") visaDeltagare();
+}
+
+function visaDeltagare() {
+  const s = aktivSession();
+  if (!s) return;
+  document.getElementById("deltagare-modal-rubrik").textContent = s.namn + " – deltagare";
+  const container = document.getElementById("deltagare-chips");
+  container.innerHTML = personer.map(p => {
+    const arMig = p.id === migId;
+    return `<span class="deltagar-chip${arMig ? " mig" : ""}">${esc(p.namn)}${arMig ? " (du)" : ""}</span>`;
+  }).join("");
+  const rum = aktivRumData();
+  const lankEl = document.getElementById("deltagare-modal-lank");
+  if (rum && lankEl) {
+    lankEl.textContent = rumUrl(rum.roomId);
+  }
+  document.getElementById("deltagare-modal").classList.add("visa");
+}
+
+function stangDeltagareModalVidKlick(event) {
+  if (event.target === document.getElementById("deltagare-modal")) stangModal("deltagare-modal");
+}
+
 function visaMeny() {
   renderaSessionsLista();
   const reglerad = aktivArReglerad();
@@ -1184,6 +1357,16 @@ async function kopieraRumLank() {
   }
 }
 
+async function kopieraDeltagarLank() {
+  const url = document.getElementById("deltagare-modal-lank").textContent;
+  try {
+    await navigator.clipboard.writeText(url);
+    alert("Länken kopierad!");
+  } catch (_) {
+    prompt("Kopiera länken:", url);
+  }
+}
+
 async function delaRumLank() {
   if (!navigator.share) return;
   const url = document.getElementById("rum-skapat-url").value;
@@ -1348,5 +1531,15 @@ function avbrytJoin() {
     visaSkarm1();
   }
 }
+
+// Pausa polling när fliken inte är synlig, återuppta vid synlighet igen.
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) return;
+  // Återupptag: hämta direkt vid synlighet om rum-session är aktiv.
+  const rum = aktivRumData();
+  if (rum) refreshUtgifter();
+});
+
+window.addEventListener("beforeunload", stoppPolling);
 
 init();
