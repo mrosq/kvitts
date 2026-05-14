@@ -7,6 +7,7 @@ const {
   egnaInfoText,
   migreraUtgift,
   minimeradeOverforingar,
+  parseRumSokvag,
 } = require("./logic");
 
 // ---------------------------------------------------------------------------
@@ -591,5 +592,41 @@ describe("integration: raknaDel → raknaUtSaldo", () => {
     );
     assertClose(sP1.p1, 45, "p1 betalar: p1 ska få 45");
     assertClose(sP2.p2, 55, "p2 betalar: p2 ska få 55");
+  });
+});
+
+describe("parseRumSokvag", () => {
+  it("plockar ut rum-ID från /r/<id>", () => {
+    assert.equal(parseRumSokvag("/r/ABC123"), "ABC123");
+  });
+
+  it("normaliserar till versaler", () => {
+    assert.equal(parseRumSokvag("/r/abc123"), "ABC123");
+  });
+
+  it("accepterar trailing slash", () => {
+    assert.equal(parseRumSokvag("/r/K7M2X9/"), "K7M2X9");
+  });
+
+  it("returnerar null för pathnames utan rum-prefix", () => {
+    assert.equal(parseRumSokvag("/"), null);
+    assert.equal(parseRumSokvag("/r/"), null);
+    assert.equal(parseRumSokvag("/other/ABC123"), null);
+  });
+
+  it("avvisar för korta eller för långa ID:n", () => {
+    assert.equal(parseRumSokvag("/r/AB"), null);
+    assert.equal(parseRumSokvag("/r/ABCDEFGHIJK"), null);
+  });
+
+  it("avvisar specialtecken i ID:t", () => {
+    assert.equal(parseRumSokvag("/r/ABC-12"), null);
+    assert.equal(parseRumSokvag("/r/ABC 12"), null);
+  });
+
+  it("hanterar icke-strängar utan att krascha", () => {
+    assert.equal(parseRumSokvag(null), null);
+    assert.equal(parseRumSokvag(undefined), null);
+    assert.equal(parseRumSokvag(123), null);
   });
 });

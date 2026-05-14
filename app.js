@@ -169,20 +169,24 @@ function unikaNamn(basnamn) {
   return basnamn + " " + Date.now();
 }
 
-function skapaSession(namn, sessionPersoner, sessionMigId, sessionUtgifter) {
+function skapaSession(namn, sessionPersoner, sessionMigId, sessionUtgifter, extraData) {
   const id = "s" + Date.now() + "_" + Math.floor(Math.random() * 10000);
+  const kind = (extraData && extraData.kind) || "lokal";
   const session = {
     id,
     namn: unikaNamn(namn || "Min lista"),
     skapad: new Date().toISOString(),
     reglerad: false,
+    kind,
   };
   sessions.push(session);
-  localStorage.setItem(sessionDataKey(id), JSON.stringify({
+  const data = {
     personer: sessionPersoner,
     migId: sessionMigId,
     utgifter: sessionUtgifter || [],
-  }));
+    ...(extraData || {}),
+  };
+  localStorage.setItem(sessionDataKey(id), JSON.stringify(data));
   sparaSessionsMeta();
   return session;
 }
@@ -250,6 +254,13 @@ function init() {
   migreraTillNPersoner();
   migreraTillSessions();
   laddaSessionsMeta();
+
+  // Rum-länk har företräde — hoppa över auto-restore och kör join-flödet.
+  const rumId = parseRumSokvag(window.location.pathname);
+  if (rumId) {
+    startaJoinFlode(rumId);
+    return;
+  }
 
   // Välj en aktiv session om möjligt
   if (aktivSessionId && !sessions.find(s => s.id === aktivSessionId)) {
@@ -1110,6 +1121,232 @@ function bekraftaRaderaSession() {
     return;
   }
   visaMeny();
+}
+
+// =============================================================================
+// RUM-FLÖDE (feature 004a)
+// =============================================================================
+// Tillstånd som lever mellan skärmarna i join/create-flödena.
+let _rumSkapat = null;       // { roomId, roomNamn, personId }
+let _rumForJoin = null;      // { roomId, roomNamn } – väntar på namn-bekräftelse
+
+function visaSkapaRum() {
+  doljAllaSkärmar();
+  document.getElementById("intro-skapa-rum").style.display = "flex";
+  const inp = document.getElementById("skapa-rum-namn");
+  inp.value = "";
+  document.getElementById("btn-skapa-rum").disabled = true;
+  inp.focus();
+}
+
+async function skapaRumOchGaIn() {
+  const namn = document.getElementById("skapa-rum-namn").value.trim();
+  if (!namn) return;
+  const minNamn = mittSparadeNamn() || "Jag";
+  const btn = document.getElementById("btn-skapa-rum");
+  btn.disabled = true;
+  btn.textContent = "Skapar…";
+  try {
+    const res = await KvittsSupabase.skapaRum(namn, minNamn);
+    _rumSkapat = { roomId: res.roomId, roomNamn: res.roomNamn, personId: res.personId };
+    visaRumSkapat();
+  } catch (e) {
+    alert("Kunde inte skapa rummet: " + (e.message || e));
+    btn.disabled = false;
+    btn.textContent = "Skapa rum →";
+  }
+}
+
+function visaRumSkapat() {
+  doljAllaSkärmar();
+  document.getElementById("intro-rum-skapat").style.display = "flex";
+  const url = rumUrl(_rumSkapat.roomId);
+  document.getElementById("rum-skapat-text").textContent =
+    "Rummet \"" + _rumSkapat.roomNamn + "\" är skapat. Dela länken med dem som ska vara med.";
+  document.getElementById("rum-skapat-url").value = url;
+  const delaBtn = document.getElementById("btn-dela-rum");
+  delaBtn.style.display = navigator.share ? "block" : "none";
+}
+
+function rumUrl(roomId) {
+  return window.location.origin + "/r/" + roomId;
+}
+
+async function kopieraRumLank() {
+  const url = document.getElementById("rum-skapat-url").value;
+  try {
+    await navigator.clipboard.writeText(url);
+    alert("Länken kopierad!");
+  } catch (_) {
+    // Fallback: selektera fältet så användaren kan kopiera manuellt
+    const inp = document.getElementById("rum-skapat-url");
+    inp.select();
+  }
+}
+
+async function delaRumLank() {
+  if (!navigator.share) return;
+  const url = document.getElementById("rum-skapat-url").value;
+  try {
+    await navigator.share({ title: "Kvitts: " + _rumSkapat.roomNamn, url });
+  } catch (_) { /* användaren avbröt */ }
+}
+
+function gaInIRumEfterSkapa() {
+  if (!_rumSkapat) return;
+  skapaRumSession(_rumSkapat.roomId, _rumSkapat.roomNamn, _rumSkapat.personId);
+  _rumSkapat = null;
+}
+
+function skapaRumSession(roomId, roomNamn, personId) {
+  const minNamn = mittSparadeNamn() || "Jag";
+  // Personer/utgifter fylls i av polling i 004b. För 004a räcker det med
+  // mig själv i listan så headern och dropdownen har något att visa.
+  const sessionPersoner = [{ id: personId, namn: minNamn }];
+  sparaAktivSessionsData(); // säkerställ nuvarande session sparad
+  const session = skapaSession(roomNamn, sessionPersoner, personId, [], {
+    kind: "rum",
+    roomId,
+    personId,
+  });
+  vaxlaTillSession(session.id);
+}
+
+function mittSparadeNamn() {
+  // Försök i ordning: sparat p1-namn, namnet på "jag" i aktiv lokal session
+  const sparad = localStorage.getItem("kvitts_person1");
+  if (sparad) return sparad;
+  const aktiv = aktivSession();
+  if (aktiv) {
+    const data = laddaSessionsData(aktiv.id);
+    const mig = data?.personer?.find(p => p.id === data.migId);
+    if (mig?.namn) return mig.namn;
+  }
+  return null;
+}
+
+function visaGaMedRum() {
+  doljAllaSkärmar();
+  document.getElementById("intro-ga-med-rum").style.display = "flex";
+  document.getElementById("ga-med-input").value = "";
+  document.getElementById("btn-ga-med").disabled = true;
+  document.getElementById("ga-med-fel").style.display = "none";
+  document.getElementById("ga-med-input").focus();
+}
+
+function extraheraRumId(input) {
+  const v = input.trim();
+  // Är det en URL? Plocka ut via parseRumSokvag.
+  try {
+    const u = new URL(v);
+    const id = parseRumSokvag(u.pathname);
+    if (id) return id;
+  } catch (_) { /* inte en URL */ }
+  // Annars: behandla som rå kod om den matchar formatet
+  if (/^[A-Za-z0-9]{4,10}$/.test(v)) return v.toUpperCase();
+  return null;
+}
+
+async function hittaRumForJoin() {
+  const raw = document.getElementById("ga-med-input").value;
+  const felEl = document.getElementById("ga-med-fel");
+  felEl.style.display = "none";
+  const id = extraheraRumId(raw);
+  if (!id) {
+    felEl.textContent = "Det där ser inte ut som en giltig rum-kod eller länk.";
+    felEl.style.display = "block";
+    return;
+  }
+  const btn = document.getElementById("btn-ga-med");
+  btn.disabled = true;
+  btn.textContent = "Hittar…";
+  try {
+    const rum = await KvittsSupabase.haRum(id);
+    if (!rum) {
+      felEl.textContent = "Hittade inget rum med koden " + id + ".";
+      felEl.style.display = "block";
+      btn.disabled = false;
+      btn.textContent = "Hitta rum →";
+      return;
+    }
+    _rumForJoin = { roomId: rum.id, roomNamn: rum.namn };
+    visaBekraftaJoin();
+  } catch (e) {
+    felEl.textContent = "Kunde inte kontakta servern: " + (e.message || e);
+    felEl.style.display = "block";
+    btn.disabled = false;
+    btn.textContent = "Hitta rum →";
+  }
+}
+
+function startaJoinFlode(roomId) {
+  // Kommer hit direkt vid laddning av /r/<id>. Slå upp rummet och visa
+  // bekräftelseskärmen om det finns.
+  doljAllaSkärmar();
+  document.getElementById("intro-ga-med-rum").style.display = "flex";
+  document.getElementById("ga-med-input").value = roomId;
+  document.getElementById("btn-ga-med").disabled = false;
+  document.getElementById("ga-med-fel").style.display = "none";
+  hittaRumForJoin();
+}
+
+function visaBekraftaJoin() {
+  doljAllaSkärmar();
+  document.getElementById("intro-bekrafta-join").style.display = "flex";
+  const sparatNamn = mittSparadeNamn();
+  const namnInp = document.getElementById("bekrafta-join-namn");
+  const btn = document.getElementById("btn-bekrafta-join");
+  if (sparatNamn) {
+    document.getElementById("bekrafta-join-text").textContent =
+      "Du heter " + sparatNamn + ". Gå med i \"" + _rumForJoin.roomNamn + "\"?";
+    namnInp.style.display = "none";
+    btn.disabled = false;
+  } else {
+    document.getElementById("bekrafta-join-text").textContent =
+      "Vad heter du? Du går med i \"" + _rumForJoin.roomNamn + "\".";
+    namnInp.style.display = "";
+    namnInp.value = "";
+    btn.disabled = true;
+    namnInp.focus();
+  }
+}
+
+async function bekraftaJoin() {
+  if (!_rumForJoin) return;
+  let minNamn = mittSparadeNamn();
+  if (!minNamn) {
+    minNamn = document.getElementById("bekrafta-join-namn").value.trim();
+    if (!minNamn) return;
+    localStorage.setItem("kvitts_person1", minNamn);
+  }
+  const btn = document.getElementById("btn-bekrafta-join");
+  btn.disabled = true;
+  btn.textContent = "Går med…";
+  try {
+    const res = await KvittsSupabase.gaMedIRum(_rumForJoin.roomId, minNamn);
+    skapaRumSession(res.roomId, _rumForJoin.roomNamn, res.personId);
+    _rumForJoin = null;
+    // Städa pathname så vi inte triggar join igen vid reload.
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState({}, "", "/");
+    }
+  } catch (e) {
+    alert("Kunde inte gå med: " + (e.message || e));
+    btn.disabled = false;
+    btn.textContent = "Gå med →";
+  }
+}
+
+function avbrytJoin() {
+  _rumForJoin = null;
+  if (window.history && window.history.replaceState) {
+    window.history.replaceState({}, "", "/");
+  }
+  if (sessions.length > 0 && aktivSessionId) {
+    visaApp();
+  } else {
+    visaSkarm1();
+  }
 }
 
 init();

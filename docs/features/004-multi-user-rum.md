@@ -1,7 +1,15 @@
 # 004 – Multi-user-läge via delad rum-länk
 
-**Status:** open
+**Status:** open — delas upp i etapper
 **Skapad:** 2026-04-19
+
+**Leverans i etapper** (samma mönster som 006a/b/c):
+- [004a – Rum-fundament: Supabase, routing, skapa/gå med](004a-rum-fundament.md)
+- [004b – Rum: utgifter och polling-sync](004b-rum-utgifter-polling.md)
+- [004c – Rum: saldo-vy för N + polering](004c-rum-saldo-polering.md)
+
+Denna fil fungerar som översikt och designreferens. Konkreta
+leverans-scope finns i subspecarna ovan.
 
 ## Varför
 

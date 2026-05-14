@@ -177,6 +177,20 @@ function migreraUtgift(u) {
   };
 }
 
+/**
+ * Plocka ut rum-ID:t ur en pathname som "/r/ABC123".
+ * Tillåter 4–10 alphanumeriska tecken (case-insensitive, normaliserar till
+ * versaler). Returnerar null om pathname inte matchar.
+ *
+ * @param {string} pathname
+ * @returns {string | null}
+ */
+function parseRumSokvag(pathname) {
+  if (typeof pathname !== "string") return null;
+  const m = pathname.match(/^\/r\/([A-Za-z0-9]{4,10})\/?$/);
+  return m ? m[1].toUpperCase() : null;
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
     raknaDel,
@@ -185,5 +199,6 @@ if (typeof module !== "undefined") {
     egnaInfoText,
     migreraUtgift,
     minimeradeOverforingar,
+    parseRumSokvag,
   };
 }

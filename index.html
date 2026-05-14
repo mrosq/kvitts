@@ -348,9 +348,60 @@
 
 <div id="intro-3b" class="intro-skarm" style="display:none">
   <h1>Kvitts</h1>
-  <p>Det här läget finns inte än.</p>
-  <p style="max-width:280px; line-height:1.5; font-size:0.85rem">Att varje person håller sin egen lista ligger på vår roadmap — men är inte byggt än. Välj det andra alternativet för att komma igång nu.</p>
-  <button class="btn-primary" onclick="visaSkarm2()">← Tillbaka</button>
+  <p>Skapa ett nytt rum eller gå med via en delad länk.</p>
+  <div class="lagesval-knappar">
+    <button class="lagesval-kort" onclick="visaSkapaRum()">
+      <strong>Skapa nytt rum</strong>
+      <span>Ge projektet ett namn och dela länken med dina vänner.</span>
+    </button>
+    <button class="lagesval-kort" onclick="visaGaMedRum()">
+      <strong>Gå med i rum</strong>
+      <span>Klistra in länk eller kod du fått av någon annan.</span>
+    </button>
+  </div>
+  <button class="btn-text" onclick="visaSkarm2()">← Tillbaka</button>
+</div>
+
+<div id="intro-skapa-rum" class="intro-skarm" style="display:none">
+  <h1>Skapa rum</h1>
+  <p>Namnge ditt projekt (t.ex. "Spanien 2026").</p>
+  <input class="setup-input" id="skapa-rum-namn" type="text" maxlength="40" placeholder="Projektnamn..."
+    oninput="document.getElementById('btn-skapa-rum').disabled = !this.value.trim()"
+    onkeydown="if(event.key==='Enter' && this.value.trim()) skapaRumOchGaIn()"/>
+  <button class="btn-primary" id="btn-skapa-rum" onclick="skapaRumOchGaIn()" disabled>Skapa rum →</button>
+  <button class="btn-text" onclick="visaSkarm3b()">← Tillbaka</button>
+</div>
+
+<div id="intro-rum-skapat" class="intro-skarm" style="display:none">
+  <h1>Klart!</h1>
+  <p id="rum-skapat-text"></p>
+  <input class="setup-input" id="rum-skapat-url" type="text" readonly style="text-align:center; font-size:0.9rem;"/>
+  <div style="display:flex; gap:0.5rem; flex-direction:column; width:100%;">
+    <button class="btn-primary" onclick="kopieraRumLank()">Kopiera länk</button>
+    <button class="btn-primary" id="btn-dela-rum" onclick="delaRumLank()" style="display:none">Dela…</button>
+    <button class="btn-primary" onclick="gaInIRumEfterSkapa()">Börja lägg till utgifter →</button>
+  </div>
+</div>
+
+<div id="intro-ga-med-rum" class="intro-skarm" style="display:none">
+  <h1>Gå med i rum</h1>
+  <p>Klistra in länken eller koden du fått.</p>
+  <input class="setup-input" id="ga-med-input" type="text" placeholder="K7M2X9 eller https://..."
+    oninput="document.getElementById('btn-ga-med').disabled = !this.value.trim()"
+    onkeydown="if(event.key==='Enter' && this.value.trim()) hittaRumForJoin()"/>
+  <button class="btn-primary" id="btn-ga-med" onclick="hittaRumForJoin()" disabled>Hitta rum →</button>
+  <div id="ga-med-fel" style="color:var(--accent); font-size:0.85rem; display:none"></div>
+  <button class="btn-text" onclick="visaSkarm3b()">← Tillbaka</button>
+</div>
+
+<div id="intro-bekrafta-join" class="intro-skarm" style="display:none">
+  <h1>Gå med?</h1>
+  <p id="bekrafta-join-text"></p>
+  <input class="setup-input" id="bekrafta-join-namn" type="text" maxlength="20" placeholder="Ditt namn..."
+    style="display:none"
+    oninput="document.getElementById('btn-bekrafta-join').disabled = !this.value.trim()"/>
+  <button class="btn-primary" id="btn-bekrafta-join" onclick="bekraftaJoin()">Gå med →</button>
+  <button class="btn-text" onclick="avbrytJoin()">← Avbryt</button>
 </div>
 
 <div id="app" style="display:none">
@@ -552,7 +603,10 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
 <script src="logic.js"></script>
+<script src="supabase.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
