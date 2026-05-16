@@ -257,10 +257,21 @@ function init() {
   migreraTillSessions();
   laddaSessionsMeta();
 
-  // Rum-länk har företräde — hoppa över auto-restore och kör join-flödet.
+  // Rum-länk har företräde — men kolla om vi redan har en session för rummet.
   const rumId = parseRumSokvag(window.location.pathname);
   if (rumId) {
-    startaJoinFlode(rumId);
+    const befintligRumSession = sessions.find(s => {
+      if (s.kind !== "rum") return false;
+      const d = laddaSessionsData(s.id);
+      return d && d.roomId === rumId;
+    });
+    if (befintligRumSession) {
+      // Redan med — gå direkt in utan join-flöde
+      if (window.history && window.history.replaceState) window.history.replaceState({}, "", "/");
+      vaxlaTillSession(befintligRumSession.id);
+    } else {
+      startaJoinFlode(rumId);
+    }
     return;
   }
 
@@ -322,7 +333,9 @@ function visaSkarm3b() {
 function doljAllaSkärmar() {
   document.querySelectorAll(".intro-skarm").forEach(el => el.style.display = "none");
   document.getElementById("app").style.display = "none";
+  document.getElementById("rum-borttaget-skarm").style.display = "none";
   stoppPolling();
+  sattOfflineMode(false);
 }
 
 function sparaOchGaTillSkarm2() {
@@ -373,7 +386,9 @@ function sparaSetup() {
 
 function visaApp() {
   document.querySelectorAll(".intro-skarm").forEach(el => el.style.display = "none");
+  document.getElementById("rum-borttaget-skarm").style.display = "none";
   document.getElementById("app").style.display = "block";
+  sattOfflineMode(false);
   syncaPersonAlias();
 
   const s = aktivSession();
@@ -1054,8 +1069,48 @@ function spara() {
 }
 
 // =============================================================================
-// RUM-UTGIFTER (feature 004b)
+// RUM-UTGIFTER (feature 004b) + OFFLINE-HANTERING (004c)
 // =============================================================================
+
+let _offlineMode = false;
+
+function sattOfflineMode(offline) {
+  if (_offlineMode === offline) return;
+  _offlineMode = offline;
+  document.getElementById("offline-banner").style.display = offline ? "block" : "none";
+  // Disabla/enablea formuläret så man inte råkar skriva mot en backend som inte svarar
+  const form = document.getElementById("ny-utgift-kort");
+  if (form) {
+    form.querySelectorAll("input, select, button").forEach(el => {
+      el.disabled = offline;
+    });
+  }
+}
+
+function visaRumBorttaget() {
+  // Rensa aktiv session och ta användaren tillbaka till menyn
+  const s = aktivSession();
+  if (s) {
+    raderaSession(s.id);
+    aktivSessionId = null;
+    sparaSessionsMeta();
+  }
+  stoppPolling();
+  doljAllaSkärmar();
+  // Visa ett enkelt felmeddelande via intro-skärm-mönster
+  const el = document.getElementById("rum-borttaget-skarm");
+  if (el) {
+    el.style.display = "flex";
+  } else {
+    alert("Rummet finns inte längre.");
+    if (sessions.length > 0) {
+      const nyAktiv = sessions.find(s => !s.reglerad) || sessions[0];
+      vaxlaTillSession(nyAktiv.id);
+    } else {
+      visaSkarm1();
+    }
+  }
+}
 
 function aktivRumData() {
   const s = aktivSession();
@@ -1070,12 +1125,14 @@ async function refreshUtgifter() {
   if (!rum) return;
   try {
     const fraBackend = await KvittsSupabase.hamtaUtgifter(rum.roomId);
+    sattOfflineMode(false);
     const forut = JSON.stringify(utgifter);
     utgifter = fraBackend;
     sparaAktivSessionsData();
     if (JSON.stringify(utgifter) !== forut) uppdatera();
   } catch (e) {
     console.error("Kunde inte hämta utgifter:", e);
+    sattOfflineMode(true);
   }
 }
 
@@ -1088,6 +1145,7 @@ async function refreshDeltagareOchUtgifter(forcera = false) {
       KvittsSupabase.hamtaUtgifter(rum.roomId),
       KvittsSupabase.hamtaDeltagare(rum.roomId),
     ]);
+    sattOfflineMode(false);
     const forutUtgifter = JSON.stringify(utgifter);
     const forutPersoner = JSON.stringify(personer);
     utgifter = fraBackend;
@@ -1109,6 +1167,12 @@ async function refreshDeltagareOchUtgifter(forcera = false) {
     if (andradPersoner || andradUtgifter) uppdatera();
   } catch (e) {
     console.error("Kunde inte hämta rum-data:", e);
+    // Kontrollera om rummet är borttaget (404-liknande: inga deltagare returneras alls)
+    if (e && (e.code === "PGRST116" || (e.message && e.message.includes("does not exist")))) {
+      visaRumBorttaget();
+    } else {
+      sattOfflineMode(true);
+    }
   }
 }
 
@@ -1169,11 +1233,15 @@ function stangDeltagareModalVidKlick(event) {
 function visaMeny() {
   renderaSessionsLista();
   const reglerad = aktivArReglerad();
+  const s = aktivSession();
+  const erRum = !!(s && s.kind === "rum");
   // Reglera-knappen visas bara när aktiv session är pågående
   const regleraBtn = document.getElementById("meny-reglera-btn");
   if (regleraBtn) regleraBtn.style.display = reglerad || !aktivSessionId ? "none" : "block";
-  // Spara-knappen visas om det finns utgifter i aktiv session
-  document.getElementById("meny-spara-btn").style.display = utgifter.length > 0 ? "block" : "none";
+  // Fil-kontroller är irrelevanta i rum-läge (backend är persistensen)
+  document.getElementById("meny-fil-rad").style.display = erRum ? "none" : "flex";
+  // Spara-knappen visas om det finns utgifter i aktiv lokal session
+  document.getElementById("meny-spara-btn").style.display = (!erRum && utgifter.length > 0) ? "block" : "none";
   document.getElementById("meny-modal").classList.add("visa");
 }
 function stangMenyVidKlickUtanfor(event) {
@@ -1506,7 +1574,20 @@ async function bekraftaJoin() {
   btn.disabled = true;
   btn.textContent = "Går med…";
   try {
-    const res = await KvittsSupabase.gaMedIRum(_rumForJoin.roomId, minNamn);
+    // Kolla om vi redan har en session för detta rum (dubbel-join)
+    const befintligSession = sessions.find(s => {
+      if (s.kind !== "rum") return false;
+      const d = laddaSessionsData(s.id);
+      return d && d.roomId === _rumForJoin.roomId;
+    });
+    if (befintligSession) {
+      vaxlaTillSession(befintligSession.id);
+      _rumForJoin = null;
+      if (window.history && window.history.replaceState) window.history.replaceState({}, "", "/");
+      return;
+    }
+    const befintligtPersonId = null; // Ingen befintlig session, men skicka med null
+    const res = await KvittsSupabase.gaMedIRum(_rumForJoin.roomId, minNamn, befintligtPersonId);
     skapaRumSession(res.roomId, _rumForJoin.roomNamn, res.personId);
     _rumForJoin = null;
     // Städa pathname så vi inte triggar join igen vid reload.
@@ -1527,6 +1608,18 @@ function avbrytJoin() {
   }
   if (sessions.length > 0 && aktivSessionId) {
     visaApp();
+  } else {
+    visaSkarm1();
+  }
+}
+
+function gaFranRumBorttaget() {
+  if (window.history && window.history.replaceState) {
+    window.history.replaceState({}, "", "/");
+  }
+  const nyAktiv = sessions.find(s => !s.reglerad) || sessions[0];
+  if (nyAktiv) {
+    vaxlaTillSession(nyAktiv.id);
   } else {
     visaSkarm1();
   }

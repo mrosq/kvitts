@@ -6,3 +6,4 @@ Thumbs.db
 .env.local
 *.log
 agent-browser/
+.claude/settings.local.json

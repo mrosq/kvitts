@@ -45,8 +45,18 @@
     return data; // null om inte finns
   }
 
-  async function gaMedIRum(roomId, minNamn) {
+  async function gaMedIRum(roomId, minNamn, befintligtPersonId) {
     const c = client();
+    // Idempotent: om vi redan har ett person_id för detta rum, återanvänd det.
+    if (befintligtPersonId) {
+      const { data: befintlig } = await c
+        .from("members")
+        .select("id")
+        .eq("id", befintligtPersonId)
+        .eq("room_id", roomId)
+        .maybeSingle();
+      if (befintlig) return { roomId, personId: befintlig.id };
+    }
     const { data: medlem, error } = await c
       .from("members")
       .insert({ room_id: roomId, namn: minNamn })

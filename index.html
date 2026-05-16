@@ -293,6 +293,11 @@
     border-radius: 10px; padding: 0.7rem 0.9rem; margin-bottom: 1rem;
     font-size: 0.85rem; color: var(--muted);
   }
+  .offline-banner {
+    background: #fff3cd; border: 1px solid #e6c56a;
+    border-radius: 10px; padding: 0.7rem 0.9rem; margin-bottom: 1rem;
+    font-size: 0.85rem; color: #7a5a00;
+  }
 
   .fordelning-lista {
     background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
@@ -402,6 +407,12 @@
   <button class="btn-text" onclick="visaSkarm3b()">← Tillbaka</button>
 </div>
 
+<div id="rum-borttaget-skarm" class="intro-skarm" style="display:none">
+  <h1>Rummet finns inte längre</h1>
+  <p>Det delade rummet har tagits bort eller länken är felaktig.</p>
+  <button class="btn-primary" onclick="gaFranRumBorttaget()">Tillbaka till start →</button>
+</div>
+
 <div id="intro-bekrafta-join" class="intro-skarm" style="display:none">
   <h1>Gå med?</h1>
   <p id="bekrafta-join-text"></p>
@@ -421,6 +432,10 @@
 
   <div class="reglerad-banner" id="reglerad-banner" style="display:none">
     ✓ Denna session är reglerad och visas som historik. Växla till en pågående session i <strong>inställningar</strong> för att fortsätta registrera utgifter.
+  </div>
+
+  <div class="offline-banner" id="offline-banner" style="display:none">
+    ⚠ Ingen anslutning — ändringar sparas inte. Kontrollera nätverket och försök igen.
   </div>
 
   <div class="saldo-kort" id="saldo-kort" onclick="visaSaldoDetalj()">
@@ -476,7 +491,7 @@
 
     <div class="meny-lista" id="meny-aktiv-sektion">
       <button class="meny-rad" id="meny-reglera-btn" onclick="visaRegleraFranMeny()">✓ Markera som reglerat</button>
-      <div style="display:flex; gap:0.5rem;">
+      <div id="meny-fil-rad" style="display:flex; gap:0.5rem;">
         <button class="meny-rad" style="flex:1" onclick="laddaFilFranMeny()">⬆ Ladda fil</button>
         <button class="meny-rad" id="meny-spara-btn" style="display:none; flex:1" onclick="sparaFilFranMeny()">⬇ Spara fil</button>
       </div>
