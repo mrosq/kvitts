@@ -270,7 +270,10 @@ function init() {
       if (window.history && window.history.replaceState) window.history.replaceState({}, "", "/");
       vaxlaTillSession(befintligRumSession.id);
     } else {
-      startaJoinFlode(rumId);
+      // 018a: tyst återanslutning om vi har sparat member-id för rummet
+      // även om session-blobben är borta (rensad cache utan att rensa allt,
+      // raderad session från menyn, etc).
+      forsokTystAteranslutning(rumId);
     }
     return;
   }
@@ -1460,6 +1463,7 @@ function skapaRumSession(roomId, roomNamn, personId) {
     roomId,
     personId,
   });
+  localStorage.setItem(roomMemberKey(roomId), personId);
   vaxlaTillSession(session.id);
 }
 
@@ -1527,6 +1531,38 @@ async function hittaRumForJoin() {
     felEl.style.display = "block";
     btn.disabled = false;
     btn.textContent = "Hitta rum →";
+  }
+}
+
+// 018a — lager 1: localStorage per rum.
+// Sparat vid join/skapa i skapaRumSession; läses här vid återbesök på /r/<id>
+// när session-blobben saknas. Verifierar mot Supabase och faller tillbaka på
+// join-flödet om medlemmen inte längre finns.
+async function forsokTystAteranslutning(roomId) {
+  const sparatPersonId = localStorage.getItem(roomMemberKey(roomId));
+  if (!sparatPersonId) {
+    startaJoinFlode(roomId);
+    return;
+  }
+  try {
+    const rum = await KvittsSupabase.haRum(roomId);
+    if (!rum) {
+      localStorage.removeItem(roomMemberKey(roomId));
+      startaJoinFlode(roomId);
+      return;
+    }
+    const deltagare = await KvittsSupabase.hamtaDeltagare(roomId);
+    const mig = deltagare.find(d => d.id === sparatPersonId);
+    if (!mig) {
+      localStorage.removeItem(roomMemberKey(roomId));
+      startaJoinFlode(roomId);
+      return;
+    }
+    if (window.history && window.history.replaceState) window.history.replaceState({}, "", "/");
+    skapaRumSession(roomId, rum.namn, sparatPersonId);
+  } catch (e) {
+    // Nätfel: visa join-flödet — bättre än att fastna.
+    startaJoinFlode(roomId);
   }
 }
 

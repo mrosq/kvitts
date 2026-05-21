@@ -7,7 +7,8 @@ kan promotas till en feature-spec i `docs/features/`.
 
 ## BUG-001: Återbesök via rum-länk skapar ny deltagare istället för att återansluta
 
-**Allvarlighet:** Hög
+**Status:** delvis fixad i [018a](features/done/018a-deltagar-identitet-lager-1.md) (2026-05-21). Återstår: rensad cache, ny enhet, incognito — täcks av [018b](features/018b-deltagar-identitet-lager-2-3.md).
+**Allvarlighet:** Hög (innan 018a) → Låg (efter 018a; bara udda-fall återstår)
 **Område:** Rum-flöde / onboarding
 
 **Beskrivning:**
@@ -20,11 +21,12 @@ som en ny person, sina gamla utgifter kopplade till det gamla member-id:t.
 Användaren känns igen och återansluts till sitt befintliga member-id utan
 att behöva göra något.
 
-**Designfrågor att lösa:**
-- Hur identifierar vi en återvändande användare? (localStorage per room_id?)
-- Vad händer om samma person öppnar länken på en ny enhet — ska hen få
-  välja namn igen eller alltid behandlas som ny?
-- Ska appen visa "välkommen tillbaka, X" eller bara tyst återansluta?
+**Fix-status:**
+- ✅ Normalfallet (samma enhet, session-blob borttagen från meny eller
+  saknad) — löst i 018a via fristående `kvitts_room_<id>_member_id`-nyckel
+  + tyst återanslutning vid `/r/<id>`.
+- ⏳ Rensad cache, ny enhet, incognito — kräver lager 2 (hashad e-post)
+  och/eller lager 3 (member_token i URL). Specat i 018b.
 
 ---
 

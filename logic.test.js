@@ -8,6 +8,7 @@ const {
   migreraUtgift,
   minimeradeOverforingar,
   parseRumSokvag,
+  roomMemberKey,
 } = require("./logic");
 
 // ---------------------------------------------------------------------------
@@ -628,5 +629,15 @@ describe("parseRumSokvag", () => {
     assert.equal(parseRumSokvag(null), null);
     assert.equal(parseRumSokvag(undefined), null);
     assert.equal(parseRumSokvag(123), null);
+  });
+});
+
+describe("roomMemberKey", () => {
+  it("bygger nyckel med rum-id:t i mitten", () => {
+    assert.equal(roomMemberKey("ABC123"), "kvitts_room_ABC123_member_id");
+  });
+
+  it("är unik per rum", () => {
+    assert.notEqual(roomMemberKey("ABC123"), roomMemberKey("XYZ789"));
   });
 });

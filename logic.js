@@ -191,6 +191,18 @@ function parseRumSokvag(pathname) {
   return m ? m[1].toUpperCase() : null;
 }
 
+/**
+ * localStorage-nyckel för stabil deltagar-identitet per rum (feature 018a).
+ * Skrivs vid join/skapa, läses vid återbesök på /r/<id> för tyst återanslutning
+ * även när session-blobben är borta.
+ *
+ * @param {string} roomId
+ * @returns {string}
+ */
+function roomMemberKey(roomId) {
+  return "kvitts_room_" + roomId + "_member_id";
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
     raknaDel,
@@ -200,5 +212,6 @@ if (typeof module !== "undefined") {
     migreraUtgift,
     minimeradeOverforingar,
     parseRumSokvag,
+    roomMemberKey,
   };
 }
