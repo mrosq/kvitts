@@ -454,10 +454,17 @@
   <h1>Klart!</h1>
   <p id="rum-skapat-text"></p>
   <input class="setup-input" id="rum-skapat-url" type="text" readonly style="text-align:center; font-size:0.9rem;"/>
+  <input class="setup-input" id="rum-skapat-epost" type="email" maxlength="100"
+    placeholder="Din e-postadress (för att kunna återansluta)"
+    oninput="document.getElementById('btn-ga-in-rum').disabled = !this.value.trim()"
+    onkeydown="if(event.key==='Enter' && this.value.trim()) gaInIRumEfterSkapa()"/>
+  <div style="font-size:0.78rem; color:var(--muted); text-align:left; width:100%;">
+    Används bara för att identifiera dig om du byter enhet eller rensar cookies. Delas aldrig.
+  </div>
   <div style="display:flex; gap:0.5rem; flex-direction:column; width:100%;">
     <button class="btn-primary" onclick="kopieraRumLank()">Kopiera länk</button>
     <button class="btn-primary" id="btn-dela-rum" onclick="delaRumLank()" style="display:none">Dela…</button>
-    <button class="btn-primary" onclick="gaInIRumEfterSkapa()">Börja lägg till utgifter →</button>
+    <button class="btn-primary" id="btn-ga-in-rum" onclick="gaInIRumEfterSkapa()" disabled>Börja lägg till utgifter →</button>
   </div>
 </div>
 

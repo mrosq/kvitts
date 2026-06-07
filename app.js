@@ -1421,6 +1421,8 @@ function visaRumSkapat() {
   document.getElementById("rum-skapat-text").textContent =
     "Rummet \"" + _rumSkapat.roomNamn + "\" är skapat. Dela länken med dem som ska vara med.";
   document.getElementById("rum-skapat-url").value = url;
+  document.getElementById("rum-skapat-epost").value = "";
+  document.getElementById("btn-ga-in-rum").disabled = true;
   const delaBtn = document.getElementById("btn-dela-rum");
   delaBtn.style.display = navigator.share ? "block" : "none";
 }
@@ -1459,10 +1461,31 @@ async function delaRumLank() {
   } catch (_) { /* användaren avbröt */ }
 }
 
-function gaInIRumEfterSkapa() {
+async function gaInIRumEfterSkapa() {
   if (!_rumSkapat) return;
-  skapaRumSession(_rumSkapat.roomId, _rumSkapat.roomNamn, _rumSkapat.personId);
-  _rumSkapat = null;
+  const epostRaw = document.getElementById("rum-skapat-epost").value.trim();
+  if (!epostRaw) return;
+  _joinEpost = epostRaw;
+  const btn = document.getElementById("btn-ga-in-rum");
+  btn.disabled = true;
+  btn.textContent = "Startar…";
+  try {
+    const identitetHash = await hashIdentitet(_joinEpost);
+    const memberToken = generateMemberToken();
+    _joinMemberToken = memberToken;
+    await KvittsSupabase.uppdateraMemberIdentitet(_rumSkapat.personId, identitetHash, memberToken);
+    skapaRumSession(_rumSkapat.roomId, _rumSkapat.roomNamn, _rumSkapat.personId);
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState({}, "", "/?me=" + memberToken);
+    }
+    const minNamn = mittSparadeNamn() || "Jag";
+    visaMinIdentitetSkarm(minNamn, _rumSkapat.roomNamn);
+    _rumSkapat = null;
+  } catch (e) {
+    alert("Kunde inte spara: " + (e.message || e));
+    btn.disabled = false;
+    btn.textContent = "Börja lägg till utgifter →";
+  }
 }
 
 function skapaRumSession(roomId, roomNamn, personId) {
