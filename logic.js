@@ -178,6 +178,45 @@ function migreraUtgift(u) {
 }
 
 /**
+ * Normalisera en e-postadress inför hashning: lowercase + trim.
+ * @param {string} epost
+ * @returns {string}
+ */
+function normaliseraEpost(epost) {
+  return (epost || "").toLowerCase().trim();
+}
+
+/**
+ * SHA-256-hash av en normaliserad identifierare. Returnerar hex-sträng.
+ * Använder SubtleCrypto (browser) eller Node:s globalThis.crypto (Node 19+/15+).
+ *
+ * @param {string} identifierare  - råvärde från användaren (normaliseras internt)
+ * @returns {Promise<string>}     - hex-sträng, 64 tecken
+ */
+async function hashIdentitet(identifierare) {
+  const normaliserad = normaliseraEpost(identifierare);
+  const data = new TextEncoder().encode(normaliserad);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const bytes = new Uint8Array(hashBuffer);
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Generera ett unikt member_token (UUID v4).
+ * @returns {string}
+ */
+function generateMemberToken() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback för äldre miljöer
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
+/**
  * Plocka ut rum-ID:t ur en pathname som "/r/ABC123".
  * Tillåter 4–10 alphanumeriska tecken (case-insensitive, normaliserar till
  * versaler). Returnerar null om pathname inte matchar.
@@ -213,5 +252,8 @@ if (typeof module !== "undefined") {
     minimeradeOverforingar,
     parseRumSokvag,
     roomMemberKey,
+    normaliseraEpost,
+    hashIdentitet,
+    generateMemberToken,
   };
 }

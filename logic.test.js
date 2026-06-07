@@ -9,6 +9,9 @@ const {
   minimeradeOverforingar,
   parseRumSokvag,
   roomMemberKey,
+  normaliseraEpost,
+  hashIdentitet,
+  generateMemberToken,
 } = require("./logic");
 
 // ---------------------------------------------------------------------------
@@ -639,5 +642,69 @@ describe("roomMemberKey", () => {
 
   it("är unik per rum", () => {
     assert.notEqual(roomMemberKey("ABC123"), roomMemberKey("XYZ789"));
+  });
+});
+
+describe("normaliseraEpost", () => {
+  it("lowercasar och trimmar", () => {
+    assert.equal(normaliseraEpost("  Peter@Gmail.COM  "), "peter@gmail.com");
+  });
+
+  it("hanterar tom sträng", () => {
+    assert.equal(normaliseraEpost(""), "");
+  });
+
+  it("hanterar undefined/null utan krasch", () => {
+    assert.equal(normaliseraEpost(null), "");
+    assert.equal(normaliseraEpost(undefined), "");
+  });
+});
+
+describe("hashIdentitet", () => {
+  it("returnerar 64-teckens hex-sträng", async () => {
+    const h = await hashIdentitet("peter@gmail.com");
+    assert.equal(typeof h, "string");
+    assert.equal(h.length, 64);
+    assert.ok(/^[0-9a-f]+$/.test(h), "ska vara hex");
+  });
+
+  it("normaliserar innan hashning — stora/små bokstäver ger samma hash", async () => {
+    const h1 = await hashIdentitet("Peter@Gmail.com");
+    const h2 = await hashIdentitet("  peter@gmail.com  ");
+    assert.equal(h1, h2);
+  });
+
+  it("olika adresser ger olika hash", async () => {
+    const h1 = await hashIdentitet("alice@example.com");
+    const h2 = await hashIdentitet("bob@example.com");
+    assert.notEqual(h1, h2);
+  });
+
+  it("deterministisk — samma input ger samma hash varje gång", async () => {
+    const h1 = await hashIdentitet("test@kvitts.app");
+    const h2 = await hashIdentitet("test@kvitts.app");
+    assert.equal(h1, h2);
+  });
+});
+
+describe("generateMemberToken", () => {
+  it("returnerar en sträng", () => {
+    assert.equal(typeof generateMemberToken(), "string");
+  });
+
+  it("är inte tom", () => {
+    assert.ok(generateMemberToken().length > 0);
+  });
+
+  it("ser ut som UUID", () => {
+    const t = generateMemberToken();
+    assert.ok(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(t),
+      "ska vara UUID v4-format"
+    );
+  });
+
+  it("är unik för varje anrop", () => {
+    assert.notEqual(generateMemberToken(), generateMemberToken());
   });
 });

@@ -27,6 +27,11 @@ let splitModalKontext = "add";   // "add" | "edit"
 let splitModalTempInkluderade = [];
 let splitModalTempEgna = {};
 
+// 018b: state för join/återanslutningsflödet
+let _joinEpost = "";           // sparas tillfälligt under join-flödet
+let _joinMemberToken = "";     // genereras vid join, visas i bekräftelseskärm
+let _joinRumForAterstall = null; // { roomId, roomNamn } – under återanslutningsflödet
+
 function syncaPersonAlias() {
   person1 = personer[0]?.namn || "";
   person2 = personer[1]?.namn || "";
@@ -251,11 +256,20 @@ function migreraTillSessions() {
 }
 
 // INIT
-function init() {
+async function init() {
   migreraGamlaNycklar();
   migreraTillNPersoner();
   migreraTillSessions();
   laddaSessionsMeta();
+
+  // 018b lager 3: tyst återanslutning via ?me=<member_token>
+  const urlParams = new URLSearchParams(window.location.search);
+  const memberToken = urlParams.get("me");
+  if (memberToken) {
+    const lyckades = await forsokTokenAteranslutning(memberToken);
+    if (lyckades) return;
+    // Misslyckades — URL städad, fortsätt normal init nedan
+  }
 
   // Rum-länk har företräde — men kolla om vi redan har en session för rummet.
   const rumId = parseRumSokvag(window.location.pathname);
@@ -270,9 +284,7 @@ function init() {
       if (window.history && window.history.replaceState) window.history.replaceState({}, "", "/");
       vaxlaTillSession(befintligRumSession.id);
     } else {
-      // 018a: tyst återanslutning om vi har sparat member-id för rummet
-      // även om session-blobben är borta (rensad cache utan att rensa allt,
-      // raderad session från menyn, etc).
+      // 018a + 018b: tyst återanslutning eller erbjud återanslutningsflöde
       forsokTystAteranslutning(rumId);
     }
     return;
@@ -1536,15 +1548,11 @@ async function hittaRumForJoin() {
 }
 
 // 018a — lager 1: localStorage per rum.
-// Sparat vid join/skapa i skapaRumSession; läses här vid återbesök på /r/<id>
-// när session-blobben saknas. Verifierar mot Supabase och faller tillbaka på
-// join-flödet om medlemmen inte längre finns.
+// 018b — lager 2: identitet_hash (e-post). Lager 3: member_token i URL.
 async function forsokTystAteranslutning(roomId) {
+  // Lager 1: localStorage
   const sparatPersonId = localStorage.getItem(roomMemberKey(roomId));
-  if (!sparatPersonId) {
-    startaJoinFlode(roomId);
-    return;
-  }
+
   try {
     const rum = await KvittsSupabase.haRum(roomId);
     if (!rum) {
@@ -1552,19 +1560,107 @@ async function forsokTystAteranslutning(roomId) {
       startaJoinFlode(roomId);
       return;
     }
-    const deltagare = await KvittsSupabase.hamtaDeltagare(roomId);
-    const mig = deltagare.find(d => d.id === sparatPersonId);
-    if (!mig) {
+
+    if (sparatPersonId) {
+      const deltagare = await KvittsSupabase.hamtaDeltagare(roomId);
+      const mig = deltagare.find(d => d.id === sparatPersonId);
+      if (mig) {
+        if (window.history && window.history.replaceState) window.history.replaceState({}, "", "/");
+        skapaRumSession(roomId, rum.namn, sparatPersonId);
+        return;
+      }
       localStorage.removeItem(roomMemberKey(roomId));
-      startaJoinFlode(roomId);
-      return;
     }
-    if (window.history && window.history.replaceState) window.history.replaceState({}, "", "/");
-    skapaRumSession(roomId, rum.namn, sparatPersonId);
+
+    // Lager 2: erbjud återanslutning via hash
+    _joinRumForAterstall = { roomId, roomNamn: rum.namn };
+    visaAterstallningsFragan();
   } catch (e) {
-    // Nätfel: visa join-flödet — bättre än att fastna.
     startaJoinFlode(roomId);
   }
+}
+
+// 018b lager 3: tyst återanslutning via member_token i URL (?me=<token>)
+async function forsokTokenAteranslutning(memberToken) {
+  try {
+    const medlem = await KvittsSupabase.hamtaMedToken(memberToken);
+    if (!medlem) {
+      // Token ogiltig — rensa URL och kör vanlig init
+      if (window.history && window.history.replaceState) window.history.replaceState({}, "", "/");
+      return false;
+    }
+    const rum = await KvittsSupabase.haRum(medlem.room_id);
+    if (!rum) {
+      if (window.history && window.history.replaceState) window.history.replaceState({}, "", "/");
+      return false;
+    }
+    // Spara i localStorage (018a-nyckeln) så nästa besök funkar via lager 1
+    localStorage.setItem(roomMemberKey(rum.id), medlem.id);
+    if (window.history && window.history.replaceState) window.history.replaceState({}, "", "/");
+    skapaRumSession(rum.id, rum.namn, medlem.id);
+    return true;
+  } catch (e) {
+    if (window.history && window.history.replaceState) window.history.replaceState({}, "", "/");
+    return false;
+  }
+}
+
+function visaAterstallningsFragan() {
+  doljAllaSkärmar();
+  const r = _joinRumForAterstall;
+  document.getElementById("atersta-ll-rubrik").textContent = "Välkommen tillbaka till \"" + (r ? r.roomNamn : "rummet") + "\"";
+  document.getElementById("atersta-ll-text").textContent = "Har du varit med i det här rummet förut?";
+  document.getElementById("intro-atersta-ll").style.display = "flex";
+}
+
+function visaIdentifierareFormular() {
+  doljAllaSkärmar();
+  document.getElementById("atersta-ll-epost").value = "";
+  document.getElementById("btn-atersta-ll").disabled = true;
+  document.getElementById("atersta-ll-fel").style.display = "none";
+  document.getElementById("intro-identifierare-formular").style.display = "flex";
+  document.getElementById("atersta-ll-epost").focus();
+}
+
+async function sokOchAteranslut() {
+  if (!_joinRumForAterstall) return;
+  const epostRaw = document.getElementById("atersta-ll-epost").value.trim();
+  if (!epostRaw) return;
+  const felEl = document.getElementById("atersta-ll-fel");
+  felEl.style.display = "none";
+  const btn = document.getElementById("btn-atersta-ll");
+  btn.disabled = true;
+  btn.textContent = "Söker…";
+  try {
+    const hash = await hashIdentitet(epostRaw);
+    const matchningar = await KvittsSupabase.sokMedIdentitetHash(_joinRumForAterstall.roomId, hash);
+    if (matchningar.length === 0) {
+      felEl.textContent = "Ingen deltagare med den e-postadressen i rummet — kontrollera stavningen eller välj \"Jag är ny\".";
+      felEl.style.display = "block";
+      btn.disabled = false;
+      btn.textContent = "Återanslut →";
+      return;
+    }
+    // Ta första träffen (race-case med flera lämnas för v2)
+    const mig = matchningar[0];
+    localStorage.setItem(roomMemberKey(_joinRumForAterstall.roomId), mig.id);
+    if (window.history && window.history.replaceState) window.history.replaceState({}, "", "/");
+    skapaRumSession(_joinRumForAterstall.roomId, _joinRumForAterstall.roomNamn, mig.id);
+    _joinRumForAterstall = null;
+  } catch (e) {
+    felEl.textContent = "Kunde inte söka: " + (e.message || e);
+    felEl.style.display = "block";
+    btn.disabled = false;
+    btn.textContent = "Återanslut →";
+  }
+}
+
+function fortsattSomNy() {
+  if (!_joinRumForAterstall) return;
+  const r = _joinRumForAterstall;
+  _joinRumForAterstall = null;
+  _rumForJoin = { roomId: r.roomId, roomNamn: r.roomNamn };
+  visaBekraftaJoin();
 }
 
 function startaJoinFlode(roomId) {
@@ -1583,20 +1679,31 @@ function visaBekraftaJoin() {
   document.getElementById("intro-bekrafta-join").style.display = "flex";
   const sparatNamn = mittSparadeNamn();
   const namnInp = document.getElementById("bekrafta-join-namn");
-  const btn = document.getElementById("btn-bekrafta-join");
+  const epostInp = document.getElementById("bekrafta-join-epost");
+  epostInp.value = "";
+  _joinEpost = "";
   if (sparatNamn) {
     document.getElementById("bekrafta-join-text").textContent =
       "Du heter " + sparatNamn + ". Gå med i \"" + _rumForJoin.roomNamn + "\"?";
     namnInp.style.display = "none";
-    btn.disabled = false;
+    epostInp.focus();
   } else {
     document.getElementById("bekrafta-join-text").textContent =
       "Vad heter du? Du går med i \"" + _rumForJoin.roomNamn + "\".";
     namnInp.style.display = "";
     namnInp.value = "";
-    btn.disabled = true;
     namnInp.focus();
   }
+  uppdateraBekraftaJoinKnapp();
+}
+
+function uppdateraBekraftaJoinKnapp() {
+  const namnInp = document.getElementById("bekrafta-join-namn");
+  const epostInp = document.getElementById("bekrafta-join-epost");
+  const sparatNamn = mittSparadeNamn();
+  const harNamn = !!(sparatNamn || (namnInp && namnInp.value.trim()));
+  const harEpost = !!(epostInp && epostInp.value.trim());
+  document.getElementById("btn-bekrafta-join").disabled = !(harNamn && harEpost);
 }
 
 async function bekraftaJoin() {
@@ -1607,11 +1714,14 @@ async function bekraftaJoin() {
     if (!minNamn) return;
     localStorage.setItem("kvitts_person1", minNamn);
   }
+  const epostRaw = document.getElementById("bekrafta-join-epost").value.trim();
+  if (!epostRaw) return;
+  _joinEpost = epostRaw;
+
   const btn = document.getElementById("btn-bekrafta-join");
   btn.disabled = true;
   btn.textContent = "Går med…";
   try {
-    // Kolla om vi redan har en session för detta rum (dubbel-join)
     const befintligSession = sessions.find(s => {
       if (s.kind !== "rum") return false;
       const d = laddaSessionsData(s.id);
@@ -1623,19 +1733,69 @@ async function bekraftaJoin() {
       if (window.history && window.history.replaceState) window.history.replaceState({}, "", "/");
       return;
     }
-    const befintligtPersonId = null; // Ingen befintlig session, men skicka med null
-    const res = await KvittsSupabase.gaMedIRum(_rumForJoin.roomId, minNamn, befintligtPersonId);
+
+    const res = await KvittsSupabase.gaMedIRum(_rumForJoin.roomId, minNamn, null);
+    const identitetHash = await hashIdentitet(_joinEpost);
+    const memberToken = generateMemberToken();
+    _joinMemberToken = memberToken;
+    await KvittsSupabase.uppdateraMemberIdentitet(res.personId, identitetHash, memberToken);
+
     skapaRumSession(res.roomId, _rumForJoin.roomNamn, res.personId);
-    _rumForJoin = null;
-    // Städa pathname så vi inte triggar join igen vid reload.
+
+    // Lager 3: uppdatera URL med ?me=token
     if (window.history && window.history.replaceState) {
-      window.history.replaceState({}, "", "/");
+      window.history.replaceState({}, "", "/?me=" + memberToken);
     }
+
+    // Visa bekräftelseskärm
+    visaMinIdentitetSkarm(minNamn, _rumForJoin.roomNamn);
+    _rumForJoin = null;
   } catch (e) {
     alert("Kunde inte gå med: " + (e.message || e));
     btn.disabled = false;
     btn.textContent = "Gå med →";
   }
+}
+
+function visaMinIdentitetSkarm(namn, rumNamn) {
+  doljAllaSkärmar();
+  document.getElementById("intro-min-identitet").style.display = "flex";
+  document.getElementById("min-identitet-rubrik").textContent = "Du är inne som " + namn + " ✓";
+  document.getElementById("min-identitet-epost").textContent = _joinEpost;
+  const lank = window.location.origin + "/?me=" + _joinMemberToken;
+  document.getElementById("min-identitet-lank").textContent = lank;
+}
+
+async function kopieraPersonligLank() {
+  const lank = document.getElementById("min-identitet-lank").textContent;
+  try {
+    await navigator.clipboard.writeText(lank);
+    alert("Länken kopierad!");
+  } catch (_) {
+    prompt("Kopiera din personliga länk:", lank);
+  }
+}
+
+function andraIdentifierare() {
+  const ny = prompt("Ange din e-postadress:", _joinEpost);
+  if (!ny || !ny.trim()) return;
+  _joinEpost = ny.trim();
+  document.getElementById("min-identitet-epost").textContent = _joinEpost;
+  // Uppdatera hash asynkront
+  const rumData = aktivRumData();
+  if (rumData) {
+    hashIdentitet(_joinEpost).then(h =>
+      KvittsSupabase.uppdateraMemberIdentitet(rumData.personId, h, undefined).catch(console.error)
+    );
+  }
+}
+
+function gaInEfterIdentitet() {
+  // Rensa ?me= ur URL och gå in i appen
+  if (window.history && window.history.replaceState) {
+    window.history.replaceState({}, "", "/");
+  }
+  visaApp();
 }
 
 function avbrytJoin() {

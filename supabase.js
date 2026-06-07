@@ -77,6 +77,37 @@
     return data || [];
   }
 
+  async function sokMedIdentitetHash(roomId, identitetHash) {
+    const c = client();
+    const { data, error } = await c
+      .from("members")
+      .select()
+      .eq("room_id", roomId)
+      .eq("identitet_hash", identitetHash);
+    if (error) throw error;
+    return data || [];
+  }
+
+  async function hamtaMedToken(memberToken) {
+    const c = client();
+    const { data, error } = await c
+      .from("members")
+      .select()
+      .eq("member_token", memberToken)
+      .maybeSingle();
+    if (error) throw error;
+    return data; // null om inte finns
+  }
+
+  async function uppdateraMemberIdentitet(personId, identitetHash, memberToken) {
+    const c = client();
+    const patch = {};
+    if (identitetHash !== undefined) patch.identitet_hash = identitetHash;
+    if (memberToken !== undefined) patch.member_token = memberToken;
+    const { error } = await c.from("members").update(patch).eq("id", personId);
+    if (error) throw error;
+  }
+
   // ── Mappning DB → klient ────────────────────────────────────────────────
   // DB: { id(uuid), room_id, beskrivning, belopp, betalare_id(uuid),
   //       fordelning(jsonb), datum(date), lagd_till_av_id(uuid), skapad }
@@ -176,5 +207,6 @@
   window.KvittsSupabase = {
     skapaRum, haRum, gaMedIRum, hamtaDeltagare,
     hamtaUtgifter, laggTillUtgiftRum, uppdateraUtgift, raderaUtgiftRum,
+    sokMedIdentitetHash, hamtaMedToken, uppdateraMemberIdentitet,
   };
 })();

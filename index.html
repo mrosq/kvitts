@@ -483,10 +483,71 @@
   <p id="bekrafta-join-text"></p>
   <input class="setup-input" id="bekrafta-join-namn" type="text" maxlength="20" placeholder="Ditt namn..."
     style="display:none"
-    oninput="document.getElementById('btn-bekrafta-join').disabled = !this.value.trim()"
-    onkeydown="if(event.key==='Enter' && this.value.trim()) bekraftaJoin()"/>
-  <button class="btn-primary" id="btn-bekrafta-join" onclick="bekraftaJoin()">Gå med →</button>
+    oninput="uppdateraBekraftaJoinKnapp()"
+    onkeydown="if(event.key==='Enter') document.getElementById('bekrafta-join-epost').focus()"/>
+  <input class="setup-input" id="bekrafta-join-epost" type="email" maxlength="100"
+    placeholder="Din e-postadress (för att kunna återansluta)"
+    oninput="uppdateraBekraftaJoinKnapp()"
+    onkeydown="if(event.key==='Enter' && !document.getElementById('btn-bekrafta-join').disabled) bekraftaJoin()"/>
+  <div id="bekrafta-join-epost-info" style="font-size:0.78rem; color:var(--muted); text-align:left; width:100%;">
+    Används bara för att identifiera dig om du byter enhet eller rensar cookies. Delas aldrig.
+  </div>
+  <button class="btn-primary" id="btn-bekrafta-join" onclick="bekraftaJoin()" disabled>Gå med →</button>
   <button class="btn-text" onclick="avbrytJoin()">← Avbryt</button>
+</div>
+
+<!-- 018b lager 2: Återanslutning via identifierare -->
+<div id="intro-atersta-ll" class="intro-skarm" style="display:none">
+  <h1 id="atersta-ll-rubrik">Välkommen tillbaka</h1>
+  <p id="atersta-ll-text"></p>
+  <div class="lagesval-knappar">
+    <button class="lagesval-kort" onclick="visaIdentifierareFormular()">
+      <strong>Ja, återställ min session</strong>
+      <span>Skriv in din e-postadress för att komma tillbaka som du.</span>
+    </button>
+    <button class="lagesval-kort" onclick="fortsattSomNy()">
+      <strong>Nej, jag är ny</strong>
+      <span>Gå med som ny deltagare.</span>
+    </button>
+  </div>
+</div>
+
+<!-- 018b lager 2: Identifierare-formulär -->
+<div id="intro-identifierare-formular" class="intro-skarm" style="display:none">
+  <h1>Återanslut</h1>
+  <p>Skriv in e-postadressen du angav när du gick med i rummet.</p>
+  <input class="setup-input" id="atersta-ll-epost" type="email" maxlength="100"
+    placeholder="Din e-postadress..."
+    oninput="document.getElementById('btn-atersta-ll').disabled = !this.value.trim()"
+    onkeydown="if(event.key==='Enter' && this.value.trim()) sokOchAteranslut()"/>
+  <div id="atersta-ll-fel" style="color:var(--accent); font-size:0.85rem; display:none"></div>
+  <button class="btn-primary" id="btn-atersta-ll" onclick="sokOchAteranslut()" disabled>Återanslut →</button>
+  <button class="btn-text" onclick="visaAterstallningsFragan()">← Tillbaka</button>
+</div>
+
+<!-- 018b: Bekräftelseskärm efter join -->
+<div id="intro-min-identitet" class="intro-skarm" style="display:none">
+  <h1 id="min-identitet-rubrik"></h1>
+  <div style="width:100%; background:var(--card); border-radius:var(--radius); padding:1.2rem; border:1px solid var(--border); text-align:left;">
+    <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:0.4rem;">Återanslutningsadress</div>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem; margin-bottom:0.8rem;">
+      <span id="min-identitet-epost" style="font-size:0.95rem; color:var(--ink); flex:1; word-break:break-all;"></span>
+      <button class="btn-lank" onclick="andraIdentifierare()">Ändra</button>
+    </div>
+    <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:0.4rem;">Din personliga länk</div>
+    <div style="display:flex; align-items:center; gap:0.4rem;">
+      <span id="min-identitet-lank" style="font-size:0.75rem; color:var(--muted); word-break:break-all; flex:1;"></span>
+      <button onclick="kopieraPersonligLank()" aria-label="Kopiera" style="background:none; border:none; cursor:pointer; color:var(--muted); padding:0.2rem; flex-shrink:0;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <p style="font-size:0.78rem; color:var(--muted); text-align:left; margin-top:0.2rem;">
+    Den personliga länken låter dig komma tillbaka även om du byter enhet eller rensar cookies. Spara den.
+  </p>
+  <button class="btn-primary" onclick="gaInEfterIdentitet()">Klar →</button>
 </div>
 
 <div id="app" style="display:none">

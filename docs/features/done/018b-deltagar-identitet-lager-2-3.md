@@ -1,6 +1,6 @@
 # 018b – Stabil deltagar-identitet, lager 2 + 3 (identifierare + personlig länk)
 
-**Status:** open
+**Status:** levererad 2026-06-07
 **Skapad:** 2026-05-21
 **Beror på:** [018a](done/018a-deltagar-identitet-lager-1.md) (levererad)
 **Relaterat:** 017 (gemensam reglering), 016 (Swish-trigger)
@@ -204,4 +204,13 @@ i vår trust-modell — vi är öppna med att det inte är autentisering.
 
 ## När levererad
 
-*(Fylls i efter leverans.)*
+**2026-06-07.** Identifierare: e-post (beslutades vid implementation — öppnar för 016-integration uteslöts men kan läggas till utan schema-ändring). Obligatorisk vid join för nya members.
+
+Levererat:
+- `logic.js`: `normaliseraEpost`, `hashIdentitet` (SHA-256, Web Crypto), `generateMemberToken` (UUID v4)
+- `supabase.js`: `sokMedIdentitetHash`, `hamtaMedToken`, `uppdateraMemberIdentitet`
+- `018b-migration.sql` kördes mot Supabase — `identitet_hash` + `member_token` (unique) på `members`
+- Join-skärm utökad med e-postfält; bekräftelseskärm visar adress + personlig länk
+- Återanslutningsflöde: "Har du varit med?" → hash-lookup → tyst återanslutning
+- Lager 3: `?me=<token>` i URL via `replaceState`; `init()` provar token-återanslutning först
+- 80/80 tester gröna (11 nya)
