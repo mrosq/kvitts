@@ -418,7 +418,8 @@
   <p id="bekrafta-join-text"></p>
   <input class="setup-input" id="bekrafta-join-namn" type="text" maxlength="20" placeholder="Ditt namn..."
     style="display:none"
-    oninput="document.getElementById('btn-bekrafta-join').disabled = !this.value.trim()"/>
+    oninput="document.getElementById('btn-bekrafta-join').disabled = !this.value.trim()"
+    onkeydown="if(event.key==='Enter' && this.value.trim()) bekraftaJoin()"/>
   <button class="btn-primary" id="btn-bekrafta-join" onclick="bekraftaJoin()">Gå med →</button>
   <button class="btn-text" onclick="avbrytJoin()">← Avbryt</button>
 </div>
@@ -446,11 +447,11 @@
   <div class="sektion-rubrik" id="ny-utgift-rubrik">Ny utgift</div>
   <div class="kort" id="ny-utgift-kort">
     <div class="form-rad">
-      <input type="number" id="belopp" placeholder="Belopp (kr)" min="0" step="0.01" style="flex:1; min-width:0;" oninput="uppdateraLaggTillKnapp()"/>
+      <input type="number" id="belopp" placeholder="Belopp (kr)" min="0" step="0.01" style="flex:1; min-width:0;" oninput="uppdateraLaggTillKnapp()" onkeydown="if(event.key==='Enter' && !document.getElementById('btn-lagg-till').disabled) laggTillUtgift()"/>
       <select id="betalare" style="flex:1; min-width:0;"></select>
     </div>
     <div class="form-rad">
-      <input type="text" id="beskrivning" placeholder="Beskrivning (t.ex. mat, taxi...)" oninput="uppdateraLaggTillKnapp()"/>
+      <input type="text" id="beskrivning" placeholder="Beskrivning (t.ex. mat, taxi...)" oninput="uppdateraLaggTillKnapp()" onkeydown="if(event.key==='Enter' && !document.getElementById('btn-lagg-till').disabled) laggTillUtgift()"/>
     </div>
     <div class="split-rad">
       <div class="split-toggle">
@@ -508,7 +509,7 @@
     <h2>Ny session</h2>
     <p class="modal-sub">Ge sessionen ett namn och ange vem du delar utgifter med.</p>
     <div class="form-rad">
-      <input type="text" id="ny-session-namn" placeholder="Namn (t.ex. Spanien-resan)" maxlength="40" style="flex:1; min-width:0;"/>
+      <input type="text" id="ny-session-namn" placeholder="Namn (t.ex. Spanien-resan)" maxlength="40" style="flex:1; min-width:0;" onkeydown="if(event.key==='Enter') document.querySelector('#ny-session-personer input')?.focus()"/>
     </div>
     <div id="ny-session-personer" style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom:0.5rem;"></div>
     <button class="btn-lagg-till-person" onclick="nySessionLaggTillPersonFalt()">+ Lägg till person</button>

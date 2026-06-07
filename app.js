@@ -700,7 +700,7 @@ async function laggTillUtgift() {
 function oppnaDetaljer(id) {
   // Reglerade sessioner: visning är read-only, inga detaljer att redigera.
   if (aktivArReglerad()) return;
-  const u = utgifter.find(x => x.id === id);
+  const u = utgifter.find(x => x.id == id);
   if (!u) return;
   editId = id;
   document.getElementById("edit-beskrivning").value = u.beskrivning || "";
@@ -785,7 +785,7 @@ async function sparaEdit() {
     return;
   }
 
-  const idx = utgifter.findIndex(x => x.id === editId);
+  const idx = utgifter.findIndex(x => x.id == editId);
   if (idx !== -1) utgifter[idx] = { ...utgifter[idx], ...patch };
   spara();
   uppdatera();
@@ -807,7 +807,7 @@ async function raderaUtgift() {
     return;
   }
 
-  utgifter = utgifter.filter(x => x.id !== editId);
+  utgifter = utgifter.filter(x => x.id != editId);
   spara();
   uppdatera();
   stangModal("edit-modal");
@@ -1319,6 +1319,7 @@ function nySessionLaggTillPersonFalt() {
   input.placeholder = "Namn (t.ex. Anna)";
   input.maxLength = 20;
   input.style.cssText = "padding:0.75rem 0.85rem; border:1.5px solid var(--border); border-radius:10px; font-family:'DM Sans',sans-serif; font-size:0.95rem; background:var(--bg);";
+  input.onkeydown = (e) => { if (e.key === "Enter") skapaOchVaxlaNySession(); };
   lista.appendChild(input);
   input.focus();
 }
