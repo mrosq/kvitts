@@ -1,13 +1,18 @@
 # Kvitts
 
-Liten webbapp för att hålla reda på utgifter mellan två personer — t.ex. under
-en resa eller delad lägenhet. Lägg till utgifter, välj vem som betalade och hur
-det ska delas (50/50 eller med "egna kostnader" först), så räknar appen ut
-saldot löpande.
+Liten webbapp för att hålla reda på utgifter i en grupp — t.ex. under en resa
+eller i en delad lägenhet. Lägg till utgifter, välj vem som betalade och hur det
+ska delas, så räknar appen ut vem som är skyldig vem.
 
-Ingen backend, inget konto. All data sparas lokalt i webbläsaren via
-`localStorage`. Spara/ladda-funktionen ger en JSON-fil för backup eller för att
-flytta data mellan enheter.
+## Två lägen
+
+**Jag håller reda på allas utgifter** — helt lokalt, ingen backend, inget konto.
+Du lägger in alla utgifter på din enhet. Data sparas i webbläsarens `localStorage`.
+Spara/ladda-knappen ger en JSON-fil för backup eller för att flytta data mellan enheter.
+
+**Vi lägger in utgifter var för sig** — databasdrivet via Supabase.
+Varje person lägger in sina egna utgifter på sin telefon. Du skapar ett rum och
+delar länken; de andra går med via länken. Ändringar synkas i realtid.
 
 ## Kör lokalt
 

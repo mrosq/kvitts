@@ -14,3 +14,4 @@ Mall finns i [features/_template.md](features/_template.md).
 - [ ] Flytta "betald av" till split-modalen? När man klickar på split-knappen så ligger väljaren av betalare överst i den. Det är ändå 95% av fallen där den som skapar inlägget gjorde betalningen
 - [ ] Polling-intervall: sänk från 15s till 60s när appen är i produktion — 15s är för testkörning
 - [ ] Direktlänk `/r/:id` fungerar inte lokalt (python http.server kan inte rewrite-regeln) — fungerar på Vercel. Ev. byta till ett litet dev-server-script som stödjer rewrites, eller dokumentera workaround
+- [ ] Validering på e-postfälten vid inmatning och återanslutning (018b) — idag saknas validering helt, man kan skriva vad som helst. Kolla giltigt e-postformat innan man går vidare

@@ -391,19 +391,20 @@
 <input type="file" id="ladda-input" accept=".json,application/json" style="display:none" onchange="laddaFil(event)"/>
 
 <div id="intro-1" class="intro-skarm" style="display:none">
-  <h1>Välkommen till Kvitts</h1>
-  <p>Håll koll på utgifter och dela rättvist med en vän. Inget konto behövs.</p>
+  <h1>Vad heter du?</h1>
+  <p>Du lägger in allas utgifter på din enhet. Inget konto behövs.</p>
   <input class="setup-input" id="intro-person1-namn" type="text" maxlength="20" placeholder="Ditt namn..."
     oninput="document.getElementById('btn-nasta-1').disabled = !this.value.trim()"
-    onkeydown="if(event.key==='Enter' && this.value.trim()) sparaOchGaTillSkarm2()"/>
-  <button class="btn-primary" id="btn-nasta-1" onclick="sparaOchGaTillSkarm2()" disabled>Nästa →</button>
+    onkeydown="if(event.key==='Enter' && this.value.trim()) sparaNamnOchGaTillDeltagare()"/>
+  <button class="btn-primary" id="btn-nasta-1" onclick="sparaNamnOchGaTillDeltagare()" disabled>Nästa →</button>
+  <button class="btn-text" onclick="visaSkarm2()">← Tillbaka</button>
 </div>
 
 <div id="intro-2" class="intro-skarm" style="display:none">
   <h1>Kvitts</h1>
   <p>Hur vill du använda appen?</p>
   <div class="lagesval-knappar">
-    <button class="lagesval-kort" onclick="visaSkarm3a()">
+    <button class="lagesval-kort" onclick="visaSkarm1()">
       <strong>Jag håller reda på allas utgifter</strong>
       <span>Du lägger in alla utgifter på din enhet. Inget konto behövs.</span>
     </button>
@@ -442,10 +443,13 @@
 
 <div id="intro-skapa-rum" class="intro-skarm" style="display:none">
   <h1>Skapa rum</h1>
-  <p>Namnge ditt projekt (t.ex. "Spanien 2026").</p>
-  <input class="setup-input" id="skapa-rum-namn" type="text" maxlength="40" placeholder="Projektnamn..."
-    oninput="document.getElementById('btn-skapa-rum').disabled = !this.value.trim()"
-    onkeydown="if(event.key==='Enter' && this.value.trim()) skapaRumOchGaIn()"/>
+  <p>Namnge projektet och dig själv.</p>
+  <input class="setup-input" id="skapa-rum-namn" type="text" maxlength="40" placeholder="Projektnamn (t.ex. Spanien 2026)..."
+    oninput="uppdateraSkapaRumKnapp()"
+    onkeydown="if(event.key==='Enter') document.getElementById('skapa-rum-mitt-namn').focus()"/>
+  <input class="setup-input" id="skapa-rum-mitt-namn" type="text" maxlength="20" placeholder="Ditt namn..."
+    oninput="uppdateraSkapaRumKnapp()"
+    onkeydown="if(event.key==='Enter' && !document.getElementById('btn-skapa-rum').disabled) skapaRumOchGaIn()"/>
   <button class="btn-primary" id="btn-skapa-rum" onclick="skapaRumOchGaIn()" disabled>Skapa rum →</button>
   <button class="btn-text" onclick="visaSkarm3b()">← Tillbaka</button>
 </div>

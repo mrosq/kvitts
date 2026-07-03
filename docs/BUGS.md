@@ -5,31 +5,6 @@ kan promotas till en feature-spec i `docs/features/`.
 
 ---
 
-## BUG-001: Återbesök via rum-länk skapar ny deltagare istället för att återansluta
-
-**Status:** delvis fixad i [018a](features/done/018a-deltagar-identitet-lager-1.md) (2026-05-21). Återstår: rensad cache, ny enhet, incognito — täcks av [018b](features/018b-deltagar-identitet-lager-2-3.md).
-**Allvarlighet:** Hög (innan 018a) → Låg (efter 018a; bara udda-fall återstår)
-**Område:** Rum-flöde / onboarding
-
-**Beskrivning:**
-Om en användare stänger fliken och sedan öppnar rum-länken igen visas
-"du heter X, vill du gå med i Y?" — dvs. join-flödet körs igen och ett
-nytt `members`-inslag skapas i Supabase. Användaren är nu inne i rummet
-som en ny person, sina gamla utgifter kopplade till det gamla member-id:t.
-
-**Förväntad beteende:**
-Användaren känns igen och återansluts till sitt befintliga member-id utan
-att behöva göra något.
-
-**Fix-status:**
-- ✅ Normalfallet (samma enhet, session-blob borttagen från meny eller
-  saknad) — löst i 018a via fristående `kvitts_room_<id>_member_id`-nyckel
-  + tyst återanslutning vid `/r/<id>`.
-- ⏳ Rensad cache, ny enhet, incognito — kräver lager 2 (hashad e-post)
-  och/eller lager 3 (member_token i URL). Specat i 018b.
-
----
-
 ## BUG-002: Saldo-kortet visar kvarstående skuld efter att sessionen markerats som reglerad
 
 **Allvarlighet:** Medium
@@ -56,3 +31,34 @@ visuellt nedtonas, eller ersättas med en sammanfattning typ
 
 **Hittad:** dogfood-session 2026-05-16, se
 `agent-browser/screenshots/09-reglera-confirm.png` och `10-bob-after-reglera.png`.
+
+---
+
+# Fixade
+
+Buggar som är lösta. Behålls för historiken.
+
+---
+
+## BUG-001: Återbesök via rum-länk skapar ny deltagare istället för att återansluta
+
+**Status:** ✅ Fixad. Lager 1 i [018a](features/done/018a-deltagar-identitet-lager-1.md) (2026-05-21), lager 2 + 3 i [018b](features/done/018b-deltagar-identitet-lager-2-3.md).
+**Allvarlighet:** Hög (innan 018a) → Låg (efter 018a) → Löst (efter 018b)
+**Område:** Rum-flöde / onboarding
+
+**Beskrivning:**
+Om en användare stänger fliken och sedan öppnar rum-länken igen visas
+"du heter X, vill du gå med i Y?" — dvs. join-flödet körs igen och ett
+nytt `members`-inslag skapas i Supabase. Användaren är nu inne i rummet
+som en ny person, sina gamla utgifter kopplade till det gamla member-id:t.
+
+**Förväntad beteende:**
+Användaren känns igen och återansluts till sitt befintliga member-id utan
+att behöva göra något.
+
+**Fix-status:**
+- ✅ Normalfallet (samma enhet, session-blob borttagen från meny eller
+  saknad) — löst i 018a via fristående `kvitts_room_<id>_member_id`-nyckel
+  + tyst återanslutning vid `/r/<id>`.
+- ✅ Rensad cache, ny enhet, incognito — löst i 018b via lager 2 (hashad
+  e-post) och lager 3 (member_token i URL, `?me=<token>`).

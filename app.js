@@ -312,7 +312,7 @@ async function init() {
       return;
     }
   }
-  visaSkarm1();
+  visaSkarm2();
 }
 
 // INTRO-SKÄRMAR
@@ -320,11 +320,15 @@ function visaSkarm1() {
   doljAllaSkärmar();
   document.getElementById("intro-1").style.display = "flex";
   const sparadP1 = localStorage.getItem("kvitts_person1");
+  const input = document.getElementById("intro-person1-namn");
   if (sparadP1) {
-    const input = document.getElementById("intro-person1-namn");
     input.value = sparadP1;
     document.getElementById("btn-nasta-1").disabled = false;
+  } else {
+    input.value = "";
+    document.getElementById("btn-nasta-1").disabled = true;
   }
+  input.focus();
 }
 
 function visaSkarm2() {
@@ -353,12 +357,12 @@ function doljAllaSkärmar() {
   sattOfflineMode(false);
 }
 
-function sparaOchGaTillSkarm2() {
+function sparaNamnOchGaTillDeltagare() {
   const v = document.getElementById("intro-person1-namn").value.trim();
   if (!v) return;
   person1 = v;
   localStorage.setItem("kvitts_person1", person1);
-  visaSkarm2();
+  visaSkarm3a();
 }
 
 // SETUP – dynamiska personnamns-fält
@@ -1122,7 +1126,7 @@ function visaRumBorttaget() {
       const nyAktiv = sessions.find(s => !s.reglerad) || sessions[0];
       vaxlaTillSession(nyAktiv.id);
     } else {
-      visaSkarm1();
+      visaSkarm2();
     }
   }
 }
@@ -1390,16 +1394,27 @@ let _rumForJoin = null;      // { roomId, roomNamn } – väntar på namn-bekrä
 function visaSkapaRum() {
   doljAllaSkärmar();
   document.getElementById("intro-skapa-rum").style.display = "flex";
-  const inp = document.getElementById("skapa-rum-namn");
-  inp.value = "";
-  document.getElementById("btn-skapa-rum").disabled = true;
-  inp.focus();
+  const projInp = document.getElementById("skapa-rum-namn");
+  const namnInp = document.getElementById("skapa-rum-mitt-namn");
+  projInp.value = "";
+  namnInp.value = mittSparadeNamn() || "";
+  uppdateraSkapaRumKnapp();
+  projInp.focus();
+}
+
+function uppdateraSkapaRumKnapp() {
+  const proj = document.getElementById("skapa-rum-namn").value.trim();
+  const namn = document.getElementById("skapa-rum-mitt-namn").value.trim();
+  document.getElementById("btn-skapa-rum").disabled = !(proj && namn);
 }
 
 async function skapaRumOchGaIn() {
   const namn = document.getElementById("skapa-rum-namn").value.trim();
-  if (!namn) return;
-  const minNamn = mittSparadeNamn() || "Jag";
+  const minNamnInput = document.getElementById("skapa-rum-mitt-namn").value.trim();
+  if (!namn || !minNamnInput) return;
+  person1 = minNamnInput;
+  localStorage.setItem("kvitts_person1", minNamnInput);
+  const minNamn = minNamnInput;
   const btn = document.getElementById("btn-skapa-rum");
   btn.disabled = true;
   btn.textContent = "Skapar…";
@@ -1829,7 +1844,7 @@ function avbrytJoin() {
   if (sessions.length > 0 && aktivSessionId) {
     visaApp();
   } else {
-    visaSkarm1();
+    visaSkarm2();
   }
 }
 
@@ -1841,7 +1856,7 @@ function gaFranRumBorttaget() {
   if (nyAktiv) {
     vaxlaTillSession(nyAktiv.id);
   } else {
-    visaSkarm1();
+    visaSkarm2();
   }
 }
 
