@@ -31,14 +31,14 @@
 
   .intro-skarm {
     display: flex; flex-direction: column; align-items: center;
-    justify-content: center; min-height: 80vh; gap: 1rem; text-align: center;
+    justify-content: center; min-height: 74vh; gap: 1rem; text-align: center;
     animation: introIn 0.5s cubic-bezier(0.23, 1, 0.32, 1) both;
   }
   @keyframes introIn {
     from { opacity: 0; transform: translateY(16px); }
     to   { opacity: 1; transform: translateY(0); }
   }
-  .intro-skarm h1 { font-size: 2.4rem; }
+  .intro-skarm h1 { font-size: 1.3rem; }
   .intro-skarm > p { color: var(--muted); max-width: 280px; line-height: 1.5; }
   .setup-input {
     width: 100%; padding: 0.9rem 1rem; border: 2px solid var(--border);
@@ -290,13 +290,23 @@
   }
   .btn-radera:active { transform: scale(0.95); }
   .btn-radera svg { display: block; }
-  .app-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0.2rem; }
-  .app-header h1 { margin-bottom: 0; }
+  .brand-topbar {
+    display: flex; align-items: center; justify-content: center;
+    position: relative; min-height: 44px; margin-bottom: 0.6rem;
+  }
+  .brand-topbar .wordmark {
+    font-family: 'DM Serif Display', serif; font-size: 2.6rem;
+    letter-spacing: -0.02em; color: var(--ink); line-height: 1; user-select: none;
+    transition: font-size 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .brand-topbar.kompakt .wordmark { font-size: 1.3rem; }
   .btn-meny-ikon {
     background: none; border: none; font-size: 1.4rem; cursor: pointer;
-    color: var(--muted); padding: 0.2rem 0.4rem; border-radius: 8px; line-height: 1; margin-top: 0.3rem;
+    color: var(--muted); padding: 0.2rem 0.4rem; border-radius: 8px; line-height: 1;
+    position: absolute; right: 0; top: 50%; transform: translateY(-50%);
   }
   .btn-meny-ikon:hover { color: var(--ink); }
+  .btn-meny-ikon[hidden] { display: none; }
   .meny-lista { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.5rem; }
   .meny-rad {
     width: 100%; padding: 1rem 1.1rem; text-align: left; background: var(--bg);
@@ -390,6 +400,11 @@
 
 <input type="file" id="ladda-input" accept=".json,application/json" style="display:none" onchange="laddaFil(event)"/>
 
+<header class="brand-topbar">
+  <span class="wordmark">Kvitts</span>
+  <button class="btn-meny-ikon" id="topbar-meny" onclick="visaMeny()" title="Mer" hidden>⚙</button>
+</header>
+
 <div id="intro-1" class="intro-skarm" style="display:none">
   <h1>Vad heter du?</h1>
   <p>Du lägger in allas utgifter på din enhet. Inget konto behövs.</p>
@@ -401,7 +416,7 @@
 </div>
 
 <div id="intro-2" class="intro-skarm" style="display:none">
-  <h1>Kvitts</h1>
+  <h1>Kom igång</h1>
   <p>Hur vill du använda appen?</p>
   <div class="lagesval-knappar">
     <button class="lagesval-kort" onclick="visaSkarm1()">
@@ -416,8 +431,8 @@
 </div>
 
 <div id="intro-3a" class="intro-skarm" style="display:none">
-  <h1>Kvitts</h1>
-  <p id="intro-3a-text">Vem delar du utgifter med?</p>
+  <h1 id="intro-3a-text">Vem delar du utgifter med?</h1>
+  <p>Lägg till alla du delar utgifter med. Du kan ändra det senare.</p>
   <div id="setup-namn-lista" style="width:100%; display:flex; flex-direction:column; gap:0.5rem;"></div>
   <button class="btn-lagg-till-person" id="btn-lagg-till-person" onclick="laggTillPersonFalt()">+ Lägg till person</button>
   <button class="btn-primary" id="btn-kom-igang" onclick="sparaSetup()" disabled>Kom igång →</button>
@@ -426,7 +441,7 @@
 </div>
 
 <div id="intro-3b" class="intro-skarm" style="display:none">
-  <h1>Kvitts</h1>
+  <h1>Gemensamt rum</h1>
   <p>Skapa ett nytt rum eller gå med via en delad länk.</p>
   <div class="lagesval-knappar">
     <button class="lagesval-kort" onclick="visaSkapaRum()">
@@ -562,10 +577,6 @@
 </div>
 
 <div id="app" style="display:none">
-  <div class="app-header">
-    <h1>Kvitts</h1>
-    <button class="btn-meny-ikon" onclick="visaMeny()" title="Mer">⚙</button>
-  </div>
   <p class="subtitle" id="app-subtitle" onclick="subtitleKlick()"></p>
 
   <div class="reglerad-banner" id="reglerad-banner" style="display:none">

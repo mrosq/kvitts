@@ -353,6 +353,8 @@ function doljAllaSkärmar() {
   document.querySelectorAll(".intro-skarm").forEach(el => el.style.display = "none");
   document.getElementById("app").style.display = "none";
   document.getElementById("rum-borttaget-skarm").style.display = "none";
+  document.getElementById("topbar-meny").hidden = true;
+  document.querySelector(".brand-topbar").classList.remove("kompakt");
   stoppPolling();
   sattOfflineMode(false);
 }
@@ -407,6 +409,8 @@ function visaApp() {
   document.querySelectorAll(".intro-skarm").forEach(el => el.style.display = "none");
   document.getElementById("rum-borttaget-skarm").style.display = "none";
   document.getElementById("app").style.display = "block";
+  document.getElementById("topbar-meny").hidden = false;
+  document.querySelector(".brand-topbar").classList.add("kompakt");
   sattOfflineMode(false);
   syncaPersonAlias();
 
