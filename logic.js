@@ -242,6 +242,75 @@ function roomMemberKey(roomId) {
   return "kvitts_room_" + roomId + "_member_id";
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GEMENSAM REGLERING (feature 017)
+//
+// Kvittensen (en "settlement") nycklas på (fran→till)-paret i den optimerade
+// betalningsplanen (minimeradeOverforingar). En kvittens innebär att kreditorn
+// (till) har bekräftat att debitorn (fran) betalat `belopp`.
+//
+// Staleness (beslut 1): om planens belopp för ett par skiljer sig väsentligt
+// från det kvitterade beloppet — t.ex. för att en ny utgift ändrat planen —
+// räknas paret INTE som reglerat, utan flaggas `stale` så UI:t kan be om ny
+// bekräftelse.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const REGLERING_EPS = 0.01;
+
+/**
+ * Slå ihop den optimerade planen med registrerade kvittenser.
+ * Varje överföring får `kvitterad` (bekräftad, belopp matchar) och `stale`
+ * (kvittens finns men beloppet har ändrats → behöver bekräftas igen).
+ *
+ * @param {Array<{fran: string, till: string, belopp: number}>} plan
+ * @param {Array<{fran: string, till: string, belopp: number}>} kvittenser
+ * @returns {Array<{fran: string, till: string, belopp: number, kvitterad: boolean, stale: boolean}>}
+ */
+function matchaPlanMotKvittenser(plan, kvittenser) {
+  const lista = Array.isArray(kvittenser) ? kvittenser : [];
+  return (plan || []).map((rad) => {
+    const kv = lista.find((k) => k.fran === rad.fran && k.till === rad.till);
+    if (!kv) {
+      return { ...rad, kvitterad: false, stale: false };
+    }
+    const beloppMatchar = Math.abs(Number(kv.belopp) - rad.belopp) < REGLERING_EPS;
+    return {
+      ...rad,
+      kvitterad: beloppMatchar,
+      stale: !beloppMatchar,
+    };
+  });
+}
+
+/**
+ * Är alla överföringar i planen kvitterade? Tom plan (inga skulder) räknas
+ * som fullt reglerad.
+ *
+ * @param {Array<{fran: string, till: string, belopp: number}>} plan
+ * @param {Array<{fran: string, till: string, belopp: number}>} kvittenser
+ * @returns {boolean}
+ */
+function rumFulltReglerat(plan, kvittenser) {
+  const matchad = matchaPlanMotKvittenser(plan, kvittenser);
+  return matchad.every((rad) => rad.kvitterad);
+}
+
+/**
+ * Ska en viss debitors vy arkiveras? Sant när alla överföringar där personen
+ * är avsändare (`fran === migId`) är kvitterade. Har personen inga skulder
+ * (bara kreditor, eller inget alls) → sant, inget att vänta på.
+ *
+ * @param {Array<{fran: string, till: string, belopp: number}>} plan
+ * @param {Array<{fran: string, till: string, belopp: number}>} kvittenser
+ * @param {string} migId
+ * @returns {boolean}
+ */
+function debitorArkiverad(plan, kvittenser, migId) {
+  const minaSkulder = matchaPlanMotKvittenser(plan, kvittenser)
+    .filter((rad) => rad.fran === migId);
+  return minaSkulder.every((rad) => rad.kvitterad);
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
     raknaDel,
@@ -255,5 +324,8 @@ if (typeof module !== "undefined") {
     normaliseraEpost,
     hashIdentitet,
     generateMemberToken,
+    matchaPlanMotKvittenser,
+    rumFulltReglerat,
+    debitorArkiverad,
   };
 }
