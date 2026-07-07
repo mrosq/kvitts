@@ -90,4 +90,31 @@ Alla skulder är reglerade. Rummet arkiveras.
 
 ## När levererad
 
-*(Fylls i efter leverans.)*
+**Status: implementerad på `feature/017-gemensam-reglering`, ej mergad.**
+
+Byggt:
+- `logic.js`: `matchaPlanMotKvittenser`, `rumFulltReglerat`, `debitorArkiverad`
+  (rena, DOM-fria). Kvittensen nycklas på `(fran→till)`-paret i den
+  optimerade planen (`minimeradeOverforingar`).
+- `logic.test.js`: nya determinism-/tie-break-tester som låser att planen är
+  reproducerbar (grund för att nyckla kvittenser på par), plus scenariotester
+  för reglerings-helpers och integration plan→reglering. Hela sviten grön.
+- `docs/features/017-migration.sql`: `settlements`-tabell med öppen RLS
+  (v1, matchar övriga tabeller).
+- `supabase.js`: `hamtaKvittenser`, `kvitteraOverforing` (upsert),
+  `avKvitteraOverforing` (delete).
+- `app.js`: rum-läge i reglera-modalen — kreditorn får "Reglerat"-knapp,
+  debitorn ser statusindikator. Kvittenser pollas ihop med utgifter/deltagare.
+  Auto-arkivering av debitorns vy när alla dess skulder är kvitterade.
+  Kvittens-hämtningen är best-effort så rummet fungerar även före migrering.
+
+Beslut som gäller (från diskussion):
+- **Staleness (v1):** kvittens gäller `(fran→till)`-paret; om planens belopp
+  ändrats (ny utgift) flaggas paret `stale` och räknas inte som reglerat.
+- **Fullt-reglerat:** härlett klient-side, ingen `rooms.arkiverad`-kolumn i v1.
+
+Återstår innan merge:
+1. Kör `docs/features/017-migration.sql` i Supabase SQL Editor.
+2. Dogfooda hela flödet med minst två deltagare (kreditor bekräftar,
+   debitor auto-arkiveras, rum fullt reglerat).
+3. Merge → `main` → Vercel.
