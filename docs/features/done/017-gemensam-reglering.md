@@ -90,7 +90,7 @@ Alla skulder är reglerade. Rummet arkiveras.
 
 ## När levererad
 
-**Status: implementerad på `feature/017-gemensam-reglering`, ej mergad.**
+**Status: levererad, mergad till `main`.**
 
 Byggt:
 - `logic.js`: `matchaPlanMotKvittenser`, `rumFulltReglerat`, `debitorArkiverad`
@@ -123,7 +123,7 @@ Beslut som gäller (från diskussion):
 Återstår innan merge:
 1. ~~Kör `docs/features/017-migration.sql` i Supabase SQL Editor.~~ Gjort.
 2. ~~Dogfooda hela flödet med minst två deltagare (kreditor bekräftar,
-   debitor auto-arkiveras, rum fullt reglerat).~~ Gjort — kreditor (Anna) +
-   debitor (Bob), utgift 200 kr, Anna trycker Reglerat, Bob auto-arkiveras,
-   Anna auto-arkiveras när rummet är fullt reglerat (bugfix `minRegleringKlar`).
-3. Merge → `main` → Vercel.
+   debitor auto-arkiveras, rum fullt reglerat).~~ Gjort — 2 personer (Anna+Bob)
+   samt 3 personer (Anna kreditor, Bob+Cecilia debitorer): kreditorn arkiveras
+   först när ALLA inkommande betalningar bekräftats (bugfix `minRegleringKlar`).
+3. ~~Merge → `main` → Vercel.~~ Gjort.
