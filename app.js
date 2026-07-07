@@ -1424,8 +1424,18 @@ async function skapaRumOchGaIn() {
   btn.disabled = true;
   btn.textContent = "Skapar…";
   try {
-    const res = await KvittsSupabase.skapaRum(namn, minNamn);
-    _rumSkapat = { roomId: res.roomId, roomNamn: res.roomNamn, personId: res.personId };
+    // Skapa rummet endast om det inte redan gjorts (retry-skydd så ett
+    // misslyckat identitetsanrop inte skapar dubbletträum).
+    if (!_rumSkapat) {
+      const res = await KvittsSupabase.skapaRum(namn, minNamn);
+      _rumSkapat = { roomId: res.roomId, roomNamn: res.roomNamn, personId: res.personId };
+    }
+    // Identitet + personlig token (018b) görs direkt så både rumslänk och
+    // personlig länk kan visas på samma bekräftelseskärm.
+    const identitetHash = await hashIdentitet(_joinEpost);
+    const memberToken = generateMemberToken();
+    _joinMemberToken = memberToken;
+    await KvittsSupabase.uppdateraMemberIdentitet(_rumSkapat.personId, identitetHash, memberToken);
     visaRumSkapat();
   } catch (e) {
     alert("Kunde inte skapa rummet: " + (e.message || e));
@@ -1439,8 +1449,11 @@ function visaRumSkapat() {
   document.getElementById("intro-rum-skapat").style.display = "flex";
   const url = rumUrl(_rumSkapat.roomId);
   document.getElementById("rum-skapat-text").textContent =
-    "Rummet \"" + _rumSkapat.roomNamn + "\" är skapat. Dela länken med dem som ska vara med.";
+    "Rummet \"" + _rumSkapat.roomNamn + "\" är skapat.";
   document.getElementById("rum-skapat-url").value = url;
+  document.getElementById("rum-skapat-epost-visning").textContent = _joinEpost;
+  document.getElementById("rum-skapat-personlig-lank").textContent =
+    window.location.origin + "/?me=" + _joinMemberToken;
   const delaBtn = document.getElementById("btn-dela-rum");
   delaBtn.style.display = navigator.share ? "block" : "none";
 }
@@ -1481,26 +1494,35 @@ async function delaRumLank() {
 
 async function gaInIRumEfterSkapa() {
   if (!_rumSkapat) return;
-  if (!_joinEpost) return;
-  const btn = document.getElementById("btn-ga-in-rum");
-  btn.disabled = true;
-  btn.textContent = "Startar…";
+  // Identitet/token är redan sparat i skapaRumOchGaIn — gå bara in i appen.
+  skapaRumSession(_rumSkapat.roomId, _rumSkapat.roomNamn, _rumSkapat.personId);
+  if (window.history && window.history.replaceState) {
+    window.history.replaceState({}, "", "/");
+  }
+  _rumSkapat = null;
+  _joinMemberToken = "";
+}
+
+function andraSkaparEpost() {
+  const ny = prompt("Ange din e-postadress:", _joinEpost);
+  if (!ny || !ny.trim()) return;
+  _joinEpost = ny.trim();
+  localStorage.setItem("kvitts_identitet_epost", _joinEpost);
+  document.getElementById("rum-skapat-epost-visning").textContent = _joinEpost;
+  if (_rumSkapat) {
+    hashIdentitet(_joinEpost).then(h =>
+      KvittsSupabase.uppdateraMemberIdentitet(_rumSkapat.personId, h, undefined).catch(console.error)
+    );
+  }
+}
+
+async function kopieraRumPersonligLank() {
+  const lank = document.getElementById("rum-skapat-personlig-lank").textContent;
   try {
-    const identitetHash = await hashIdentitet(_joinEpost);
-    const memberToken = generateMemberToken();
-    _joinMemberToken = memberToken;
-    await KvittsSupabase.uppdateraMemberIdentitet(_rumSkapat.personId, identitetHash, memberToken);
-    skapaRumSession(_rumSkapat.roomId, _rumSkapat.roomNamn, _rumSkapat.personId);
-    if (window.history && window.history.replaceState) {
-      window.history.replaceState({}, "", "/?me=" + memberToken);
-    }
-    const minNamn = mittSparadeNamn() || "Jag";
-    visaMinIdentitetSkarm(minNamn, _rumSkapat.roomNamn);
-    _rumSkapat = null;
-  } catch (e) {
-    alert("Kunde inte spara: " + (e.message || e));
-    btn.disabled = false;
-    btn.textContent = "Börja lägg till utgifter →";
+    await navigator.clipboard.writeText(lank);
+    alert("Länken kopierad!");
+  } catch (_) {
+    prompt("Kopiera din personliga länk:", lank);
   }
 }
 

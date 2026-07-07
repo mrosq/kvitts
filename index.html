@@ -463,12 +463,37 @@
 <div id="intro-rum-skapat" class="intro-skarm" style="display:none">
   <h1>Klart!</h1>
   <p id="rum-skapat-text"></p>
-  <input class="setup-input" id="rum-skapat-url" type="text" readonly style="text-align:center; font-size:0.9rem;"/>
-  <div style="display:flex; gap:0.5rem; flex-direction:column; width:100%;">
-    <button class="btn-primary" onclick="kopieraRumLank()">Kopiera länk</button>
-    <button class="btn-primary" id="btn-dela-rum" onclick="delaRumLank()" style="display:none">Dela…</button>
-    <button class="btn-primary" id="btn-ga-in-rum" onclick="gaInIRumEfterSkapa()">Börja lägg till utgifter →</button>
+
+  <div style="width:100%; background:var(--card); border-radius:var(--radius); padding:1.2rem; border:1px solid var(--border); text-align:left;">
+    <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:0.4rem;">Bjud in andra</div>
+    <input class="setup-input" id="rum-skapat-url" type="text" readonly style="font-size:0.85rem; margin-bottom:0.6rem;"/>
+    <div style="display:flex; gap:0.5rem; flex-direction:column;">
+      <button class="btn-primary" onclick="kopieraRumLank()">Kopiera länk</button>
+      <button class="btn-primary" id="btn-dela-rum" onclick="delaRumLank()" style="display:none">Dela…</button>
+    </div>
   </div>
+
+  <div style="width:100%; background:var(--card); border-radius:var(--radius); padding:1.2rem; border:1px solid var(--border); text-align:left;">
+    <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:0.4rem;">Återanslutningsadress</div>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem; margin-bottom:0.8rem;">
+      <span id="rum-skapat-epost-visning" style="font-size:0.95rem; color:var(--ink); flex:1; word-break:break-all;"></span>
+      <button class="btn-lank" onclick="andraSkaparEpost()">Ändra</button>
+    </div>
+    <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:0.4rem;">Din personliga länk</div>
+    <div style="display:flex; align-items:center; gap:0.4rem;">
+      <span id="rum-skapat-personlig-lank" style="font-size:0.75rem; color:var(--muted); word-break:break-all; flex:1;"></span>
+      <button onclick="kopieraRumPersonligLank()" aria-label="Kopiera" style="background:none; border:none; cursor:pointer; color:var(--muted); padding:0.2rem; flex-shrink:0;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <p style="font-size:0.78rem; color:var(--muted); text-align:left; margin-top:0.2rem;">
+    Den personliga länken låter dig komma tillbaka även om du byter enhet eller rensar cookies. Spara den.
+  </p>
+
+  <button class="btn-primary" id="btn-ga-in-rum" onclick="gaInIRumEfterSkapa()">Börja lägg till utgifter →</button>
 </div>
 
 <div id="rum-borttaget-skarm" class="intro-skarm" style="display:none">
