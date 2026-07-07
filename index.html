@@ -423,7 +423,7 @@
       <strong>Jag håller reda på allas utgifter</strong>
       <span>Du lägger in alla utgifter på din enhet. Inget konto behövs.</span>
     </button>
-    <button class="lagesval-kort" onclick="visaSkarm3b()">
+    <button class="lagesval-kort" onclick="visaSkapaRum()">
       <strong>Vi lägger in utgifter var för sig</strong>
       <span>Varje person lägger in sina egna utgifter på sin egen telefon.</span>
     </button>
@@ -440,22 +440,6 @@
   <button class="btn-text" onclick="document.getElementById('ladda-input').click()">eller ladda en sparad fil</button>
 </div>
 
-<div id="intro-3b" class="intro-skarm" style="display:none">
-  <h1>Gemensamt rum</h1>
-  <p>Skapa ett nytt rum eller gå med via en delad länk.</p>
-  <div class="lagesval-knappar">
-    <button class="lagesval-kort" onclick="visaSkapaRum()">
-      <strong>Skapa nytt rum</strong>
-      <span>Ge projektet ett namn och dela länken med dina vänner.</span>
-    </button>
-    <button class="lagesval-kort" onclick="visaGaMedRum()">
-      <strong>Gå med i rum</strong>
-      <span>Klistra in länk eller kod du fått av någon annan.</span>
-    </button>
-  </div>
-  <button class="btn-text" onclick="visaSkarm2()">← Tillbaka</button>
-</div>
-
 <div id="intro-skapa-rum" class="intro-skarm" style="display:none">
   <h1>Skapa rum</h1>
   <p>Namnge projektet och dig själv.</p>
@@ -464,38 +448,27 @@
     onkeydown="if(event.key==='Enter') document.getElementById('skapa-rum-mitt-namn').focus()"/>
   <input class="setup-input" id="skapa-rum-mitt-namn" type="text" maxlength="20" placeholder="Ditt namn..."
     oninput="uppdateraSkapaRumKnapp()"
+    onkeydown="if(event.key==='Enter') document.getElementById('skapa-rum-epost').focus()"/>
+  <input class="setup-input" id="skapa-rum-epost" type="email" maxlength="100"
+    placeholder="Din e-postadress (för att kunna återansluta)"
+    oninput="uppdateraSkapaRumKnapp()"
     onkeydown="if(event.key==='Enter' && !document.getElementById('btn-skapa-rum').disabled) skapaRumOchGaIn()"/>
+  <div style="font-size:0.78rem; color:var(--muted); text-align:left; width:100%;">
+    E-posten används bara för att identifiera dig om du byter enhet eller rensar cookies. Delas aldrig.
+  </div>
   <button class="btn-primary" id="btn-skapa-rum" onclick="skapaRumOchGaIn()" disabled>Skapa rum →</button>
-  <button class="btn-text" onclick="visaSkarm3b()">← Tillbaka</button>
+  <button class="btn-text" onclick="visaSkarm2()">← Tillbaka</button>
 </div>
 
 <div id="intro-rum-skapat" class="intro-skarm" style="display:none">
   <h1>Klart!</h1>
   <p id="rum-skapat-text"></p>
   <input class="setup-input" id="rum-skapat-url" type="text" readonly style="text-align:center; font-size:0.9rem;"/>
-  <input class="setup-input" id="rum-skapat-epost" type="email" maxlength="100"
-    placeholder="Din e-postadress (för att kunna återansluta)"
-    oninput="document.getElementById('btn-ga-in-rum').disabled = !this.value.trim()"
-    onkeydown="if(event.key==='Enter' && this.value.trim()) gaInIRumEfterSkapa()"/>
-  <div style="font-size:0.78rem; color:var(--muted); text-align:left; width:100%;">
-    Används bara för att identifiera dig om du byter enhet eller rensar cookies. Delas aldrig.
-  </div>
   <div style="display:flex; gap:0.5rem; flex-direction:column; width:100%;">
     <button class="btn-primary" onclick="kopieraRumLank()">Kopiera länk</button>
     <button class="btn-primary" id="btn-dela-rum" onclick="delaRumLank()" style="display:none">Dela…</button>
-    <button class="btn-primary" id="btn-ga-in-rum" onclick="gaInIRumEfterSkapa()" disabled>Börja lägg till utgifter →</button>
+    <button class="btn-primary" id="btn-ga-in-rum" onclick="gaInIRumEfterSkapa()">Börja lägg till utgifter →</button>
   </div>
-</div>
-
-<div id="intro-ga-med-rum" class="intro-skarm" style="display:none">
-  <h1>Gå med i rum</h1>
-  <p>Klistra in länken eller koden du fått.</p>
-  <input class="setup-input" id="ga-med-input" type="text" placeholder="K7M2X9 eller https://..."
-    oninput="document.getElementById('btn-ga-med').disabled = !this.value.trim()"
-    onkeydown="if(event.key==='Enter' && this.value.trim()) hittaRumForJoin()"/>
-  <button class="btn-primary" id="btn-ga-med" onclick="hittaRumForJoin()" disabled>Hitta rum →</button>
-  <div id="ga-med-fel" style="color:var(--accent); font-size:0.85rem; display:none"></div>
-  <button class="btn-text" onclick="visaSkarm3b()">← Tillbaka</button>
 </div>
 
 <div id="rum-borttaget-skarm" class="intro-skarm" style="display:none">

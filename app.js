@@ -344,11 +344,6 @@ function visaSkarm3a() {
   laggTillPersonFalt();
 }
 
-function visaSkarm3b() {
-  doljAllaSkärmar();
-  document.getElementById("intro-3b").style.display = "flex";
-}
-
 function doljAllaSkärmar() {
   document.querySelectorAll(".intro-skarm").forEach(el => el.style.display = "none");
   document.getElementById("app").style.display = "none";
@@ -1400,8 +1395,10 @@ function visaSkapaRum() {
   document.getElementById("intro-skapa-rum").style.display = "flex";
   const projInp = document.getElementById("skapa-rum-namn");
   const namnInp = document.getElementById("skapa-rum-mitt-namn");
+  const epostInp = document.getElementById("skapa-rum-epost");
   projInp.value = "";
   namnInp.value = mittSparadeNamn() || "";
+  epostInp.value = localStorage.getItem("kvitts_identitet_epost") || "";
   uppdateraSkapaRumKnapp();
   projInp.focus();
 }
@@ -1409,15 +1406,19 @@ function visaSkapaRum() {
 function uppdateraSkapaRumKnapp() {
   const proj = document.getElementById("skapa-rum-namn").value.trim();
   const namn = document.getElementById("skapa-rum-mitt-namn").value.trim();
-  document.getElementById("btn-skapa-rum").disabled = !(proj && namn);
+  const epost = document.getElementById("skapa-rum-epost").value.trim();
+  document.getElementById("btn-skapa-rum").disabled = !(proj && namn && epost);
 }
 
 async function skapaRumOchGaIn() {
   const namn = document.getElementById("skapa-rum-namn").value.trim();
   const minNamnInput = document.getElementById("skapa-rum-mitt-namn").value.trim();
-  if (!namn || !minNamnInput) return;
+  const epostRaw = document.getElementById("skapa-rum-epost").value.trim();
+  if (!namn || !minNamnInput || !epostRaw) return;
   person1 = minNamnInput;
   localStorage.setItem("kvitts_person1", minNamnInput);
+  localStorage.setItem("kvitts_identitet_epost", epostRaw);
+  _joinEpost = epostRaw;
   const minNamn = minNamnInput;
   const btn = document.getElementById("btn-skapa-rum");
   btn.disabled = true;
@@ -1440,8 +1441,6 @@ function visaRumSkapat() {
   document.getElementById("rum-skapat-text").textContent =
     "Rummet \"" + _rumSkapat.roomNamn + "\" är skapat. Dela länken med dem som ska vara med.";
   document.getElementById("rum-skapat-url").value = url;
-  document.getElementById("rum-skapat-epost").value = "";
-  document.getElementById("btn-ga-in-rum").disabled = true;
   const delaBtn = document.getElementById("btn-dela-rum");
   delaBtn.style.display = navigator.share ? "block" : "none";
 }
@@ -1482,9 +1481,7 @@ async function delaRumLank() {
 
 async function gaInIRumEfterSkapa() {
   if (!_rumSkapat) return;
-  const epostRaw = document.getElementById("rum-skapat-epost").value.trim();
-  if (!epostRaw) return;
-  _joinEpost = epostRaw;
+  if (!_joinEpost) return;
   const btn = document.getElementById("btn-ga-in-rum");
   btn.disabled = true;
   btn.textContent = "Startar…";
@@ -1533,60 +1530,6 @@ function mittSparadeNamn() {
     if (mig?.namn) return mig.namn;
   }
   return null;
-}
-
-function visaGaMedRum() {
-  doljAllaSkärmar();
-  document.getElementById("intro-ga-med-rum").style.display = "flex";
-  document.getElementById("ga-med-input").value = "";
-  document.getElementById("btn-ga-med").disabled = true;
-  document.getElementById("ga-med-fel").style.display = "none";
-  document.getElementById("ga-med-input").focus();
-}
-
-function extraheraRumId(input) {
-  const v = input.trim();
-  // Är det en URL? Plocka ut via parseRumSokvag.
-  try {
-    const u = new URL(v);
-    const id = parseRumSokvag(u.pathname);
-    if (id) return id;
-  } catch (_) { /* inte en URL */ }
-  // Annars: behandla som rå kod om den matchar formatet
-  if (/^[A-Za-z0-9]{4,10}$/.test(v)) return v.toUpperCase();
-  return null;
-}
-
-async function hittaRumForJoin() {
-  const raw = document.getElementById("ga-med-input").value;
-  const felEl = document.getElementById("ga-med-fel");
-  felEl.style.display = "none";
-  const id = extraheraRumId(raw);
-  if (!id) {
-    felEl.textContent = "Det där ser inte ut som en giltig rum-kod eller länk.";
-    felEl.style.display = "block";
-    return;
-  }
-  const btn = document.getElementById("btn-ga-med");
-  btn.disabled = true;
-  btn.textContent = "Hittar…";
-  try {
-    const rum = await KvittsSupabase.haRum(id);
-    if (!rum) {
-      felEl.textContent = "Hittade inget rum med koden " + id + ".";
-      felEl.style.display = "block";
-      btn.disabled = false;
-      btn.textContent = "Hitta rum →";
-      return;
-    }
-    _rumForJoin = { roomId: rum.id, roomNamn: rum.namn };
-    visaBekraftaJoin();
-  } catch (e) {
-    felEl.textContent = "Kunde inte kontakta servern: " + (e.message || e);
-    felEl.style.display = "block";
-    btn.disabled = false;
-    btn.textContent = "Hitta rum →";
-  }
 }
 
 // 018a — lager 1: localStorage per rum.
@@ -1705,25 +1648,33 @@ function fortsattSomNy() {
   visaBekraftaJoin();
 }
 
-function startaJoinFlode(roomId) {
+async function startaJoinFlode(roomId) {
   // Kommer hit direkt vid laddning av /r/<id>. Slå upp rummet och visa
   // bekräftelseskärmen om det finns.
-  doljAllaSkärmar();
-  document.getElementById("intro-ga-med-rum").style.display = "flex";
-  document.getElementById("ga-med-input").value = roomId;
-  document.getElementById("btn-ga-med").disabled = false;
-  document.getElementById("ga-med-fel").style.display = "none";
-  hittaRumForJoin();
+  try {
+    const rum = await KvittsSupabase.haRum(roomId);
+    if (!rum) {
+      localStorage.removeItem(roomMemberKey(roomId));
+      visaRumBorttaget();
+      return;
+    }
+    _rumForJoin = { roomId: rum.id, roomNamn: rum.namn };
+    visaBekraftaJoin();
+  } catch (e) {
+    alert("Kunde inte kontakta servern: " + (e.message || e));
+    visaSkarm2();
+  }
 }
 
 function visaBekraftaJoin() {
   doljAllaSkärmar();
   document.getElementById("intro-bekrafta-join").style.display = "flex";
   const sparatNamn = mittSparadeNamn();
+  const sparadEpost = localStorage.getItem("kvitts_identitet_epost") || "";
   const namnInp = document.getElementById("bekrafta-join-namn");
   const epostInp = document.getElementById("bekrafta-join-epost");
-  epostInp.value = "";
-  _joinEpost = "";
+  epostInp.value = sparadEpost;
+  _joinEpost = sparadEpost;
   if (sparatNamn) {
     document.getElementById("bekrafta-join-text").textContent =
       "Du heter " + sparatNamn + ". Gå med i \"" + _rumForJoin.roomNamn + "\"?";
@@ -1759,6 +1710,7 @@ async function bekraftaJoin() {
   const epostRaw = document.getElementById("bekrafta-join-epost").value.trim();
   if (!epostRaw) return;
   _joinEpost = epostRaw;
+  localStorage.setItem("kvitts_identitet_epost", epostRaw);
 
   const btn = document.getElementById("btn-bekrafta-join");
   btn.disabled = true;
