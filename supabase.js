@@ -204,9 +204,51 @@
     if (error) throw error;
   }
 
+  // ── Gemensam reglering (feature 017) ──────────────────────────────────────
+  // En rad i `settlements` = kreditorn (till_id) har bekräftat att debitorn
+  // (fran_id) betalat `belopp`. Nycklas på (room_id, fran_id, till_id).
+
+  async function hamtaKvittenser(roomId) {
+    const c = client();
+    const { data, error } = await c
+      .from("settlements")
+      .select()
+      .eq("room_id", roomId);
+    if (error) throw error;
+    return (data || []).map((row) => ({
+      fran: row.fran_id,
+      till: row.till_id,
+      belopp: Number(row.belopp),
+      kvitterad_at: row.kvitterad_at,
+    }));
+  }
+
+  async function kvitteraOverforing(roomId, franId, tillId, belopp) {
+    const c = client();
+    const { error } = await c
+      .from("settlements")
+      .upsert(
+        { room_id: roomId, fran_id: franId, till_id: tillId, belopp, kvitterad_at: new Date().toISOString() },
+        { onConflict: "room_id,fran_id,till_id" }
+      );
+    if (error) throw error;
+  }
+
+  async function avKvitteraOverforing(roomId, franId, tillId) {
+    const c = client();
+    const { error } = await c
+      .from("settlements")
+      .delete()
+      .eq("room_id", roomId)
+      .eq("fran_id", franId)
+      .eq("till_id", tillId);
+    if (error) throw error;
+  }
+
   window.KvittsSupabase = {
     skapaRum, haRum, gaMedIRum, hamtaDeltagare,
     hamtaUtgifter, laggTillUtgiftRum, uppdateraUtgift, raderaUtgiftRum,
     sokMedIdentitetHash, hamtaMedToken, uppdateraMemberIdentitet,
+    hamtaKvittenser, kvitteraOverforing, avKvitteraOverforing,
   };
 })();

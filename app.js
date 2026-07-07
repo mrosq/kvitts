@@ -32,6 +32,9 @@ let _joinEpost = "";           // sparas tillfälligt under join-flödet
 let _joinMemberToken = "";     // genereras vid join, visas i bekräftelseskärm
 let _joinRumForAterstall = null; // { roomId, roomNamn } – under återanslutningsflödet
 
+// 017: kvittenser (settlements) för aktivt rum. Speglar `settlements`-tabellen.
+let _kvittenser = [];          // [{ fran, till, belopp }]
+
 function syncaPersonAlias() {
   person1 = personer[0]?.namn || "";
   person2 = personer[1]?.namn || "";
@@ -207,6 +210,7 @@ function vaxlaTillSession(id) {
   personer = data.personer || [];
   migId = data.migId || "p1";
   utgifter = data.utgifter || [];
+  _kvittenser = [];
   syncaPersonAlias();
   sparaSessionsMeta();
   visaApp();
@@ -939,6 +943,14 @@ function gaTillMinimera() {
 let _regleraLage = "parvisa";
 
 function _renderaRegleraLista() {
+  const s = aktivSession();
+  if (s && s.kind === "rum") {
+    _renderaRegleraRum();
+    return;
+  }
+
+  // Lokala sessioner: befintligt beteende (markera hela sessionen som reglerad).
+  _sattRegleraKnappar({ rum: false });
   const saldoMig = raknaUtSaldo(utgifter, personer)[migId] || 0;
   const allaNetton = Object.values(raknaUtSaldo(utgifter, personer));
   const nollat = allaNetton.every(v => Math.abs(v) < 0.01);
@@ -981,6 +993,101 @@ function _renderaRegleraLista() {
   }
 
   lista.innerHTML = rader.join("<br>") + "<br><br>När ni gjort upp: bekräfta för att markera sessionen som reglerad.";
+}
+
+// 017: Reglera-vy för rum. Utgår från den optimerade planen och visar
+// kvitterings-status per överföring. Kreditorn (till === migId) får en knapp;
+// debitorn ser en statusindikator. Arkivering sker automatiskt via polling.
+function _renderaRegleraRum() {
+  _sattRegleraKnappar({ rum: true });
+  document.getElementById("reglera-toggle-wrap").style.display = "none";
+  const lista = document.getElementById("reglera-lista");
+
+  const plan = minimeradeOverforingar(utgifter, personer);
+  if (plan.length === 0) {
+    lista.innerHTML = "<p>Inga skulder att reglera – allt är redan jämnt.</p>";
+    return;
+  }
+
+  const matchad = matchaPlanMotKvittenser(plan, _kvittenser);
+  const namn = id => esc(personer.find(p => p.id === id)?.namn || id);
+
+  const rader = matchad.map(rad => {
+    const beloppStr = rad.belopp.toFixed(2).replace(".", ",");
+    if (rad.till === migId) {
+      // Jag är kreditor: knapp för att kvittera/ångra.
+      const text = `<strong>${namn(rad.fran)}</strong> betalar dig <strong>${beloppStr} kr</strong>`;
+      if (rad.kvitterad) {
+        return `<div class="reglera-rad">
+          <span>${text}</span>
+          <button class="btn-reglera kvitterad" onclick="angraKvittens('${rad.fran}')">✓ Reglerat</button>
+        </div>`;
+      }
+      const staleTxt = rad.stale ? ` <span class="reglera-stale">(beloppet ändrades)</span>` : "";
+      return `<div class="reglera-rad">
+        <span>${text}${staleTxt}</span>
+        <button class="btn-reglera" onclick="kvitteraFran('${rad.fran}', ${rad.belopp})">Reglerat</button>
+      </div>`;
+    }
+    if (rad.fran === migId) {
+      // Jag är debitor: statusindikator, ingen knapp.
+      const text = `Du betalar <strong>${namn(rad.till)}</strong> <strong>${beloppStr} kr</strong>`;
+      const status = rad.kvitterad
+        ? `<span class="reglera-status klar">✓ Reglerat</span>`
+        : `<span class="reglera-status vantar">Väntar på bekräftelse…</span>`;
+      return `<div class="reglera-rad"><span>${text}</span>${status}</div>`;
+    }
+    // Överföring mellan två andra: visas som kontext, ingen åtgärd.
+    const text = `<strong>${namn(rad.fran)}</strong> betalar <strong>${namn(rad.till)}</strong> <strong>${beloppStr} kr</strong>`;
+    const status = rad.kvitterad
+      ? `<span class="reglera-status klar">✓ Reglerat</span>`
+      : `<span class="reglera-status vantar">Ej reglerat</span>`;
+    return `<div class="reglera-rad ovrig"><span>${text}</span>${status}</div>`;
+  });
+
+  const info = `<p class="reglera-info">Den som ska få pengar bekräftar när betalningen kommit in. När alla dina skulder är kvitterade arkiveras din vy automatiskt.</p>`;
+  lista.innerHTML = info + rader.join("");
+}
+
+// Styr modalens footer-knappar beroende på läge.
+function _sattRegleraKnappar({ rum }) {
+  const bekrafta = document.getElementById("reglera-btn-bekrafta");
+  const stang = document.getElementById("reglera-btn-stang");
+  if (rum) {
+    bekrafta.style.display = "none";
+    stang.textContent = "Stäng";
+    stang.style.flex = "1";
+  } else {
+    bekrafta.style.display = "";
+    stang.textContent = "Avbryt";
+    stang.style.flex = "";
+  }
+}
+
+// 017: Kreditorn bekräftar att en debitor betalat.
+async function kvitteraFran(franId, belopp) {
+  const rum = aktivRumData();
+  if (!rum) return;
+  try {
+    await KvittsSupabase.kvitteraOverforing(rum.roomId, franId, migId, belopp);
+    await refreshDeltagareOchUtgifter(true);
+  } catch (e) {
+    console.error("Kunde inte kvittera:", e);
+    alert("Kunde inte spara regleringen. Försök igen.");
+  }
+}
+
+// 017: Ångra en kvittens (kreditorn tryckte fel).
+async function angraKvittens(franId) {
+  const rum = aktivRumData();
+  if (!rum) return;
+  try {
+    await KvittsSupabase.avKvitteraOverforing(rum.roomId, franId, migId);
+    await refreshDeltagareOchUtgifter(true);
+  } catch (e) {
+    console.error("Kunde inte ångra kvittens:", e);
+    alert("Kunde inte ångra regleringen. Försök igen.");
+  }
 }
 
 function byttRegleraLage(lage) {
@@ -1159,14 +1266,17 @@ async function refreshDeltagareOchUtgifter(forcera = false) {
   const rum = aktivRumData();
   if (!rum) return;
   try {
-    const [fraBackend, deltagare] = await Promise.all([
+    const [fraBackend, deltagare, kvittenser] = await Promise.all([
       KvittsSupabase.hamtaUtgifter(rum.roomId),
       KvittsSupabase.hamtaDeltagare(rum.roomId),
+      hamtaKvittenserBestEffort(rum.roomId),
     ]);
     sattOfflineMode(false);
     const forutUtgifter = JSON.stringify(utgifter);
     const forutPersoner = JSON.stringify(personer);
+    const forutKvittenser = JSON.stringify(_kvittenser);
     utgifter = fraBackend;
+    _kvittenser = kvittenser;
     // Synka personer-listan med de riktiga deltagarna från backend.
     const s = aktivSession();
     const data = laddaSessionsData(s.id);
@@ -1181,8 +1291,18 @@ async function refreshDeltagareOchUtgifter(forcera = false) {
     }
     const andradPersoner = forcera || JSON.stringify(personer) !== forutPersoner;
     const andradUtgifter = forcera || JSON.stringify(utgifter) !== forutUtgifter;
+    const andradKvittenser = forcera || JSON.stringify(_kvittenser) !== forutKvittenser;
     if (andradPersoner) { uppdateraRumHeader(); populeraBetalarDropdowns(); }
     if (andradPersoner || andradUtgifter) uppdatera();
+    // Reglera-modalen live-uppdateras om den är öppen och något ändrats.
+    if ((andradPersoner || andradUtgifter || andradKvittenser) &&
+        document.getElementById("reglera-modal").classList.contains("visa")) {
+      _renderaRegleraLista();
+    }
+    // 017: auto-arkivera min vy när alla mina skulder är kvitterade.
+    if (andradPersoner || andradUtgifter || andradKvittenser) {
+      kontrolleraAutoArkivering();
+    }
   } catch (e) {
     console.error("Kunde inte hämta rum-data:", e);
     // Kontrollera om rummet är borttaget (404-liknande: inga deltagare returneras alls)
@@ -1193,6 +1313,38 @@ async function refreshDeltagareOchUtgifter(forcera = false) {
     }
   }
 }
+
+// 017: Hämta kvittenser utan att ett fel (t.ex. att settlements-tabellen inte
+// finns förrän migreringen körts) knockar hela rum-synken. Faller tillbaka på
+// den senast kända listan.
+async function hamtaKvittenserBestEffort(roomId) {
+  try {
+    return await KvittsSupabase.hamtaKvittenser(roomId);
+  } catch (e) {
+    console.warn("Kunde inte hämta kvittenser (fortsätter utan):", e);
+    return _kvittenser;
+  }
+}
+
+// 017: Om alla mina skulder i den optimerade planen är kvitterade av
+// respektive kreditor → arkivera min vy automatiskt (read-only historik).
+// Kräver att jag faktiskt HAR skulder (annars triggas det direkt för alla).
+function kontrolleraAutoArkivering() {
+  const s = aktivSession();
+  if (!s || s.kind !== "rum" || s.reglerad) return;
+  const plan = minimeradeOverforingar(utgifter, personer);
+  if (plan.length === 0) return; // inget att reglera ännu
+  // Arkivera min vy när alla överföringar som rör mig (som debitor eller
+  // kreditor) är kvitterade. En ren kreditor arkiveras när hen bekräftat alla
+  // inkommande betalningar; en debitor när alla dess skulder är bekräftade.
+  if (minRegleringKlar(plan, _kvittenser, migId)) {
+    s.reglerad = true;
+    sparaSessionsMeta();
+    stangModal("reglera-modal");
+    visaApp();
+  }
+}
+
 
 // ── Polling ──────────────────────────────────────────────────────────────────
 let _pollingInterval = null;

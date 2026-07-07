@@ -103,6 +103,23 @@
   }
   .btn-reglera:active { transform: scale(0.97); border-color: var(--ink); }
 
+  /* 017 – gemensam reglering: rad-layout i reglera-modalen */
+  .reglera-info { font-size: 0.85rem; color: var(--muted); margin: 0 0 1rem; line-height: 1.4; }
+  .reglera-rad {
+    display: flex; align-items: center; justify-content: space-between; gap: 0.8rem;
+    padding: 0.7rem 0; border-bottom: 1px solid var(--border);
+  }
+  .reglera-rad:last-child { border-bottom: none; }
+  .reglera-rad.ovrig { color: var(--muted); }
+  .reglera-rad .btn-reglera {
+    width: auto; margin-bottom: 0; padding: 0.5rem 0.9rem; font-size: 0.82rem; white-space: nowrap;
+  }
+  .reglera-rad .btn-reglera.kvitterad { border-color: var(--ink); color: var(--muted); }
+  .reglera-status { font-size: 0.82rem; white-space: nowrap; }
+  .reglera-status.klar { color: var(--ink); }
+  .reglera-status.vantar { color: var(--muted); }
+  .reglera-stale { color: var(--accent); font-size: 0.78rem; }
+
   .sektion-rubrik { font-family: 'DM Serif Display', serif; font-size: 1.1rem; margin-bottom: 0.8rem; }
   .kort { background: var(--card); border-radius: var(--radius); padding: 1.2rem; margin-bottom: 1.2rem; border: 1px solid var(--border); }
   .form-rad { display: flex; gap: 0.6rem; margin-bottom: 0.7rem; }
@@ -706,8 +723,8 @@
     </div>
     <div id="reglera-lista"></div>
     <div class="modal-knappar">
-      <button class="btn-avbryt" onclick="stangModal('reglera-modal')">Avbryt</button>
-      <button class="btn-bekrafta" onclick="reglera()">Reglera</button>
+      <button class="btn-avbryt" id="reglera-btn-stang" onclick="stangModal('reglera-modal')">Avbryt</button>
+      <button class="btn-bekrafta" id="reglera-btn-bekrafta" onclick="reglera()">Reglera</button>
     </div>
   </div>
 </div>

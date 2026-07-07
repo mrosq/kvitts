@@ -12,10 +12,15 @@ const {
   normaliseraEpost,
   hashIdentitet,
   generateMemberToken,
+  matchaPlanMotKvittenser,
+  rumFulltReglerat,
+  debitorArkiverad,
+  minRegleringKlar,
 } = require("./logic");
 
 // ---------------------------------------------------------------------------
 // Helpers
+// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 function assertClose(actual, expected, msg, tolerance = 0.001) {
   assert.ok(
@@ -552,6 +557,93 @@ describe("minimeradeOverforingar", () => {
 });
 
 // ===========================================================================
+// minimeradeOverforingar — DETERMINISM & TIE-BREAK
+// Grund för feature 017: kvittensen nycklas på (fran→till)-paret i planen,
+// så planen MÅSTE vara identisk för samma input, varje anrop och varje klient.
+// ===========================================================================
+describe("minimeradeOverforingar determinism", () => {
+  const P4 = [{ id: "p1" }, { id: "p2" }, { id: "p3" }, { id: "p4" }];
+  const P5 = [{ id: "p1" }, { id: "p2" }, { id: "p3" }, { id: "p4" }, { id: "p5" }];
+
+  it("samma input → identisk plan över upprepade anrop", () => {
+    const utg = [
+      { betalare_id: "p1", belopp: 300, fordelning: { p1: 75, p2: 75, p3: 75, p4: 75 } },
+      { betalare_id: "p2", belopp: 100, fordelning: { p1: 25, p2: 25, p3: 25, p4: 25 } },
+    ];
+    const a = minimeradeOverforingar(utg, P4);
+    const b = minimeradeOverforingar(utg, P4);
+    const c = minimeradeOverforingar(utg, P4);
+    assert.deepEqual(a, b, "anrop 1 vs 2");
+    assert.deepEqual(b, c, "anrop 2 vs 3");
+  });
+
+  it("oberoende av utgifternas ordning i listan", () => {
+    const u1 = { betalare_id: "p1", belopp: 300, fordelning: { p1: 75, p2: 75, p3: 75, p4: 75 } };
+    const u2 = { betalare_id: "p2", belopp: 100, fordelning: { p1: 25, p2: 25, p3: 25, p4: 25 } };
+    const framat = minimeradeOverforingar([u1, u2], P4);
+    const bakat = minimeradeOverforingar([u2, u1], P4);
+    assert.deepEqual(framat, bakat, "planen får inte bero på utgiftsordning");
+  });
+
+  it("tie-break på lika skuld är deterministisk (stabil sort bevarar personer-ordning)", () => {
+    // p1 lägger ut 300 jämnt på fyra → p1 kreditor (+225), p2/p3/p4 var −75 (lika skuld).
+    const utg = [
+      { betalare_id: "p1", belopp: 300, fordelning: { p1: 75, p2: 75, p3: 75, p4: 75 } },
+    ];
+    const r = minimeradeOverforingar(utg, P4);
+    // Alla tre debitorer betalar 75 till p1. Ordningen ska följa personer-listan.
+    assert.deepEqual(
+      r.map(x => x.fran),
+      ["p2", "p3", "p4"],
+      "debitorer i personer-ordning"
+    );
+    assert.ok(r.every(x => x.till === "p1"), "alla till p1");
+    assert.ok(r.every(x => Math.abs(x.belopp - 75) < 0.01), "alla 75");
+  });
+
+  it("tie-break på lika kredit är deterministisk", () => {
+    // p3 är skyldig 150, p1 och p2 är kreditorer med lika +75 vardera.
+    // p1 betalar 150 fördelat: p1:0, p2:0, p3:75, ... nej — konstruera direkt:
+    // p1 lägger ut 75 för p3, p2 lägger ut 75 för p3.
+    const utg = [
+      { betalare_id: "p1", belopp: 75, fordelning: { p3: 75 } },
+      { betalare_id: "p2", belopp: 75, fordelning: { p3: 75 } },
+    ];
+    const r = minimeradeOverforingar(utg, P3);
+    // p3 skyldig 150; kreditorer p1 och p2 (+75). Lika kredit → personer-ordning.
+    assert.deepEqual(
+      r.map(x => x.till),
+      ["p1", "p2"],
+      "kreditorer i personer-ordning"
+    );
+    assert.ok(r.every(x => x.fran === "p3"), "alla från p3");
+  });
+
+  it("plan-paren är stabila oavsett personer-listans interna referenser", () => {
+    // Samma logiska personer men nya objekt varje gång → planen ska vara lika.
+    const utg = [
+      { betalare_id: "p1", belopp: 200, fordelning: { p1: 40, p2: 40, p3: 40, p4: 40, p5: 40 } },
+    ];
+    const a = minimeradeOverforingar(utg, P5.map(p => ({ ...p })));
+    const b = minimeradeOverforingar(utg, P5.map(p => ({ ...p })));
+    assert.deepEqual(a, b, "identisk plan trots nya person-objekt");
+  });
+
+  it("kreditor-identifiering: till-fältet pekar ut rätt mottagare per överföring", () => {
+    // p1 (+250), p2 (−50), p3 (−200): enda kreditorn är p1.
+    const utg = [
+      { betalare_id: "p1", belopp: 300, fordelning: { p1: 50, p2: 50, p3: 200 } },
+    ];
+    const r = minimeradeOverforingar(utg, P3);
+    // Ur p1:s perspektiv: p1 är kreditor för båda raderna (till === "p1").
+    const somKreditor = r.filter(x => x.till === "p1");
+    assert.equal(somKreditor.length, 2, "p1 är kreditor för 2 rader");
+    // Ur p2:s perspektiv: p2 är debitor (fran === "p2"), aldrig kreditor.
+    assert.ok(r.every(x => x.till !== "p2"), "p2 aldrig kreditor");
+  });
+});
+
+// ===========================================================================
 // Integration: raknaDel → raknaUtSaldo
 // ===========================================================================
 describe("integration: raknaDel → raknaUtSaldo", () => {
@@ -708,3 +800,292 @@ describe("generateMemberToken", () => {
     assert.notEqual(generateMemberToken(), generateMemberToken());
   });
 });
+
+// ===========================================================================
+// GEMENSAM REGLERING (feature 017)
+// ===========================================================================
+describe("matchaPlanMotKvittenser", () => {
+  const PLAN = [
+    { fran: "p2", till: "p1", belopp: 100 },
+    { fran: "p3", till: "p1", belopp: 200 },
+  ];
+
+  it("tom kvittens-lista → alla överföringar okvitterade", () => {
+    const r = matchaPlanMotKvittenser(PLAN, []);
+    assert.equal(r.length, 2);
+    assert.ok(r.every((x) => x.kvitterad === false), "inga kvitterade");
+    assert.ok(r.every((x) => x.stale === false), "inga stale");
+  });
+
+  it("saknad kvittens-lista (undefined) hanteras utan krasch", () => {
+    const r = matchaPlanMotKvittenser(PLAN, undefined);
+    assert.ok(r.every((x) => x.kvitterad === false));
+  });
+
+  it("en matchande kvittens → just den raden kvitterad", () => {
+    const kv = [{ fran: "p2", till: "p1", belopp: 100 }];
+    const r = matchaPlanMotKvittenser(PLAN, kv);
+    const p2rad = r.find((x) => x.fran === "p2");
+    const p3rad = r.find((x) => x.fran === "p3");
+    assert.equal(p2rad.kvitterad, true, "p2→p1 kvitterad");
+    assert.equal(p2rad.stale, false);
+    assert.equal(p3rad.kvitterad, false, "p3→p1 ej kvitterad");
+  });
+
+  it("kvittens för par som inte finns i planen ignoreras", () => {
+    const kv = [{ fran: "p4", till: "p1", belopp: 999 }];
+    const r = matchaPlanMotKvittenser(PLAN, kv);
+    assert.equal(r.length, 2, "planen oförändrad längd");
+    assert.ok(r.every((x) => x.kvitterad === false), "inget matchar");
+  });
+
+  it("kvittens matchar bara på exakt (fran,till)-par, inte omvänt", () => {
+    // omvänd riktning ska INTE räknas som kvittens
+    const kv = [{ fran: "p1", till: "p2", belopp: 100 }];
+    const r = matchaPlanMotKvittenser(PLAN, kv);
+    assert.ok(r.every((x) => x.kvitterad === false), "omvänd riktning matchar ej");
+  });
+
+  it("staleness: kvittens finns men belopp ändrats → stale, ej kvitterad", () => {
+    // planen säger nu 150, men kvittensen gällde 100
+    const plan = [{ fran: "p2", till: "p1", belopp: 150 }];
+    const kv = [{ fran: "p2", till: "p1", belopp: 100 }];
+    const r = matchaPlanMotKvittenser(plan, kv);
+    assert.equal(r[0].kvitterad, false, "belopp skiljer → ej kvitterad");
+    assert.equal(r[0].stale, true, "flaggas för ny bekräftelse");
+  });
+
+  it("belopp inom tolerans (avrundning) räknas som kvitterad", () => {
+    const plan = [{ fran: "p2", till: "p1", belopp: 100.004 }];
+    const kv = [{ fran: "p2", till: "p1", belopp: 100 }];
+    const r = matchaPlanMotKvittenser(plan, kv);
+    assert.equal(r[0].kvitterad, true, "diff < 0.01 → kvitterad");
+    assert.equal(r[0].stale, false);
+  });
+
+  it("tom plan → tom lista", () => {
+    assert.deepEqual(matchaPlanMotKvittenser([], []), []);
+  });
+});
+
+describe("rumFulltReglerat", () => {
+  const PLAN = [
+    { fran: "p2", till: "p1", belopp: 100 },
+    { fran: "p3", till: "p1", belopp: 200 },
+  ];
+
+  it("tom plan (inga skulder) → fullt reglerad", () => {
+    assert.equal(rumFulltReglerat([], []), true);
+  });
+
+  it("alla par kvitterade → true", () => {
+    const kv = [
+      { fran: "p2", till: "p1", belopp: 100 },
+      { fran: "p3", till: "p1", belopp: 200 },
+    ];
+    assert.equal(rumFulltReglerat(PLAN, kv), true);
+  });
+
+  it("ett par okvitterat → false", () => {
+    const kv = [{ fran: "p2", till: "p1", belopp: 100 }];
+    assert.equal(rumFulltReglerat(PLAN, kv), false);
+  });
+
+  it("stale kvittens räknas inte som reglerad", () => {
+    const kv = [
+      { fran: "p2", till: "p1", belopp: 100 },
+      { fran: "p3", till: "p1", belopp: 999 }, // fel belopp → stale
+    ];
+    assert.equal(rumFulltReglerat(PLAN, kv), false);
+  });
+});
+
+describe("debitorArkiverad", () => {
+  // p2 skyldig p1 (100), p2 skyldig p3 (50), p4 skyldig p1 (200)
+  const PLAN = [
+    { fran: "p2", till: "p1", belopp: 100 },
+    { fran: "p2", till: "p3", belopp: 50 },
+    { fran: "p4", till: "p1", belopp: 200 },
+  ];
+
+  it("alla mina skulder kvitterade → arkiverad", () => {
+    const kv = [
+      { fran: "p2", till: "p1", belopp: 100 },
+      { fran: "p2", till: "p3", belopp: 50 },
+    ];
+    assert.equal(debitorArkiverad(PLAN, kv, "p2"), true);
+  });
+
+  it("en av mina skulder okvitterad → ej arkiverad", () => {
+    const kv = [{ fran: "p2", till: "p1", belopp: 100 }];
+    assert.equal(debitorArkiverad(PLAN, kv, "p2"), false);
+  });
+
+  it("person utan skulder (bara kreditor) → arkiverad direkt", () => {
+    // p1 är bara mottagare i planen → inget att vänta på
+    assert.equal(debitorArkiverad(PLAN, [], "p1"), true);
+  });
+
+  it("person som varken är fran eller till → arkiverad (inget att göra)", () => {
+    assert.equal(debitorArkiverad(PLAN, [], "p9"), true);
+  });
+
+  it("stale kvittens på min skuld → ej arkiverad", () => {
+    const kv = [
+      { fran: "p2", till: "p1", belopp: 100 },
+      { fran: "p2", till: "p3", belopp: 999 }, // fel belopp → stale
+    ];
+    assert.equal(debitorArkiverad(PLAN, kv, "p2"), false);
+  });
+});
+
+describe("minRegleringKlar", () => {
+  // p2 skyldig p1 (100), p2 skyldig p3 (50), p4 skyldig p1 (200)
+  const PLAN = [
+    { fran: "p2", till: "p1", belopp: 100 },
+    { fran: "p2", till: "p3", belopp: 50 },
+    { fran: "p4", till: "p1", belopp: 200 },
+  ];
+
+  it("ren debitor: arkiveras när alla egna skulder bekräftade", () => {
+    const kv = [
+      { fran: "p2", till: "p1", belopp: 100 },
+      { fran: "p2", till: "p3", belopp: 50 },
+    ];
+    // p2 äger inga inkommande → klar när egna skulder bekräftade.
+    assert.equal(minRegleringKlar(PLAN, kv, "p2"), true);
+  });
+
+  it("ren debitor arkiveras även om ANDRA debitorer inte reglerat", () => {
+    // p2 klar, men p4 (annan debitor) har inte reglerat → p2 arkiveras ändå.
+    const kv = [
+      { fran: "p2", till: "p1", belopp: 100 },
+      { fran: "p2", till: "p3", belopp: 50 },
+    ];
+    assert.equal(minRegleringKlar(PLAN, kv, "p2"), true);
+    assert.equal(minRegleringKlar(PLAN, kv, "p4"), false);
+  });
+
+  it("ren kreditor: arkiveras först när ALLA inkommande bekräftats", () => {
+    // p1 är mottagare för p2→p1 och p4→p1. Bara p2→p1 bekräftad → ej klar.
+    const delvis = [{ fran: "p2", till: "p1", belopp: 100 }];
+    assert.equal(minRegleringKlar(PLAN, delvis, "p1"), false);
+    // Båda inkommande bekräftade → p1 klar.
+    const bada = [
+      { fran: "p2", till: "p1", belopp: 100 },
+      { fran: "p4", till: "p1", belopp: 200 },
+    ];
+    assert.equal(minRegleringKlar(PLAN, bada, "p1"), true);
+  });
+
+  it("blandad debitor+kreditor: arkiveras först när BÅDE skuld och inkommande klar", () => {
+    // p2 är skyldig p1 (fran) och får av... nej — konstruera blandat fall:
+    // p3 är kreditor (p2→p3) OCH debitor om vi lägger p3→p1. Bygg egen plan.
+    const planBlandad = [
+      { fran: "p2", till: "p3", belopp: 50 },  // p3 mottagare (kreditor)
+      { fran: "p3", till: "p1", belopp: 30 },  // p3 avsändare (debitor)
+    ];
+    // Bara p3:s egen skuld (p3→p1) bekräftad, men p2→p3 ej → p3 måste stanna
+    // kvar för att kunna bekräfta p2:s betalning.
+    const baraEgenSkuld = [{ fran: "p3", till: "p1", belopp: 30 }];
+    assert.equal(minRegleringKlar(planBlandad, baraEgenSkuld, "p3"), false);
+    // Debitor-only-regeln hade felaktigt arkiverat p3 här:
+    assert.equal(debitorArkiverad(planBlandad, baraEgenSkuld, "p3"), true);
+    // Båda rader som rör p3 bekräftade → nu klar.
+    const bada = [
+      { fran: "p3", till: "p1", belopp: 30 },
+      { fran: "p2", till: "p3", belopp: 50 },
+    ];
+    assert.equal(minRegleringKlar(planBlandad, bada, "p3"), true);
+  });
+
+  it("person utan inblandning i planen → ej klar (inget att arkivera på)", () => {
+    assert.equal(minRegleringKlar(PLAN, [], "p9"), false);
+  });
+
+  it("stale kvittens som rör mig → ej klar", () => {
+    const kv = [
+      { fran: "p2", till: "p1", belopp: 100 },
+      { fran: "p4", till: "p1", belopp: 999 }, // stale
+    ];
+    assert.equal(minRegleringKlar(PLAN, kv, "p1"), false);
+  });
+});
+
+// ===========================================================================
+// Integration 017: minimeradeOverforingar → reglerings-helpers
+// Speglar spec-scenarierna (omdirigerad skuld, flera kreditorer, fullt rum).
+// ===========================================================================
+describe("integration 017: plan → reglering", () => {
+  const P3 = [{ id: "p1" }, { id: "p2" }, { id: "p3" }];
+
+  it("omdirigerad skuld: kreditorn för raden är rätt person", () => {
+    // p1 (+250), p2 (−50), p3 (−200) → båda betalar till p1.
+    const utg = [
+      { betalare_id: "p1", belopp: 300, fordelning: { p1: 50, p2: 50, p3: 200 } },
+    ];
+    const plan = minimeradeOverforingar(utg, P3);
+    // p3 bekräftar INTE — p1 är kreditor och den som kvitterar p3:s betalning.
+    const p3rad = plan.find((x) => x.fran === "p3");
+    assert.equal(p3rad.till, "p1", "p1 (inte p2) är kreditor för p3:s skuld");
+    // p1 kvitterar p3 → p3:s vy ska arkiveras när ALLA p3:s skulder är kvitterade
+    const kv = [{ fran: "p3", till: "p1", belopp: p3rad.belopp }];
+    assert.equal(debitorArkiverad(plan, kv, "p3"), true, "p3 har bara en skuld");
+  });
+
+  it("debitor med två kreditorer arkiveras först när båda kvitterat", () => {
+    // p1 lägger ut 75 för p3, p2 lägger ut 75 för p3 → p3 skyldig båda.
+    const utg = [
+      { betalare_id: "p1", belopp: 75, fordelning: { p3: 75 } },
+      { betalare_id: "p2", belopp: 75, fordelning: { p3: 75 } },
+    ];
+    const plan = minimeradeOverforingar(utg, P3);
+    const tillP1 = plan.find((x) => x.till === "p1");
+    const tillP2 = plan.find((x) => x.till === "p2");
+    assert.ok(tillP1 && tillP2, "p3 skyldig både p1 och p2");
+
+    // Bara p1 har kvitterat → p3 väntar fortfarande på p2.
+    const delvis = [{ fran: "p3", till: "p1", belopp: tillP1.belopp }];
+    assert.equal(debitorArkiverad(plan, delvis, "p3"), false, "väntar på p2");
+    assert.equal(rumFulltReglerat(plan, delvis), false);
+
+    // Båda kvitterat → p3 arkiveras och rummet är fullt reglerat.
+    const bada = [
+      { fran: "p3", till: "p1", belopp: tillP1.belopp },
+      { fran: "p3", till: "p2", belopp: tillP2.belopp },
+    ];
+    assert.equal(debitorArkiverad(plan, bada, "p3"), true);
+    assert.equal(rumFulltReglerat(plan, bada), true, "hela rummet reglerat");
+  });
+
+  it("redan nollat rum är fullt reglerat utan kvittenser", () => {
+    const utg = [
+      { betalare_id: "p1", belopp: 100, fordelning: { p1: 50, p2: 50 } },
+      { betalare_id: "p2", belopp: 100, fordelning: { p1: 50, p2: 50 } },
+    ];
+    const plan = minimeradeOverforingar(utg, [{ id: "p1" }, { id: "p2" }]);
+    assert.deepEqual(plan, [], "inga överföringar");
+    assert.equal(rumFulltReglerat(plan, []), true);
+  });
+
+  it("ny utgift efter kvittens gör kvittensen stale", () => {
+    // Först: p2 skyldig p1 100.
+    const utg1 = [
+      { betalare_id: "p1", belopp: 200, fordelning: { p1: 100, p2: 100 } },
+    ];
+    const plan1 = minimeradeOverforingar(utg1, [{ id: "p1" }, { id: "p2" }]);
+    const kv = [{ fran: "p2", till: "p1", belopp: plan1[0].belopp }];
+    assert.equal(rumFulltReglerat(plan1, kv), true, "kvitterad mot ursprunglig plan");
+
+    // Sedan: p1 lägger ut mer → p2:s skuld ökar → planen ändras.
+    const utg2 = [
+      ...utg1,
+      { betalare_id: "p1", belopp: 100, fordelning: { p1: 50, p2: 50 } },
+    ];
+    const plan2 = minimeradeOverforingar(utg2, [{ id: "p1" }, { id: "p2" }]);
+    const matchad = matchaPlanMotKvittenser(plan2, kv);
+    assert.equal(matchad[0].stale, true, "gammal kvittens är nu stale");
+    assert.equal(rumFulltReglerat(plan2, kv), false, "inte längre reglerat");
+  });
+});
+
