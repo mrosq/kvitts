@@ -1324,7 +1324,23 @@ function skapaRumFranMeny() {
   // Nollställ ev. kvarhängande skapa-rum-state så ett nytt rum skapas rent.
   _rumSkapat = null;
   _joinMemberToken = "";
+  // Kom vi hit från en aktiv session? Då ska "Tillbaka" gå dit, inte till start.
+  _skapaRumRetur = aktivSessionId ? aktivSessionId : null;
   visaSkapaRum();
+}
+
+// "Tillbaka" från skapa-rum: återgå till sessionen man kom från om det fanns
+// en (öppnad via menyn), annars till lägesvals-skärmen (onboarding-flödet).
+function avbrytSkapaRum() {
+  if (_skapaRumRetur) {
+    const retur = _skapaRumRetur;
+    _skapaRumRetur = null;
+    if (sessions.some(s => s.id === retur)) {
+      vaxlaTillSession(retur);
+      return;
+    }
+  }
+  visaSkarm2();
 }
 
 function visaNySessionForm() {
@@ -1397,6 +1413,7 @@ function bekraftaRaderaSession() {
 // Tillstånd som lever mellan skärmarna i join/create-flödena.
 let _rumSkapat = null;       // { roomId, roomNamn, personId }
 let _rumForJoin = null;      // { roomId, roomNamn } – väntar på namn-bekräftelse
+let _skapaRumRetur = null;   // sessions-id att gå tillbaka till om skapa-rum avbryts
 
 function visaSkapaRum() {
   doljAllaSkärmar();

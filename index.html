@@ -362,6 +362,7 @@
     .sessions-ny-rad:hover { color: var(--ink); border-color: var(--ink); }
   }
   .sessions-ny-rad:active { transform: scale(0.98); color: var(--ink); border-color: var(--ink); }
+  .sessions-ny-rad + .sessions-ny-rad { margin-top: 0.5rem; }
 
   .reglerad-banner {
     background: #f0ebe2; border: 1px solid var(--border);
@@ -457,7 +458,7 @@
     E-posten används bara för att identifiera dig om du byter enhet eller rensar cookies. Delas aldrig.
   </div>
   <button class="btn-primary" id="btn-skapa-rum" onclick="skapaRumOchGaIn()" disabled>Skapa rum →</button>
-  <button class="btn-text" onclick="visaSkarm2()">← Tillbaka</button>
+  <button class="btn-text" onclick="avbrytSkapaRum()">← Tillbaka</button>
 </div>
 
 <div id="intro-rum-skapat" class="intro-skarm" style="display:none">
