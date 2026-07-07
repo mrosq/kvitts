@@ -64,6 +64,13 @@ Sanningen om vilka features som finns och vilka som är klara bor i filsystemet 
 
 När användaren säger "implementera 003" eller liknande → leta i `docs/features/` efter filen med det numret och följ den som kravspec.
 
+### Commit-regel
+
+Committa **alltid `docs/` tillsammans med koden**. `docs/` är projektets
+feature- och buggspårning — specs, `BUGS.md` och `TODO.md` hör ihop med den
+kod de beskriver och ska in i samma commit. `git add -A` är rätt default;
+ändringar under `docs/` är aldrig "skräp som råkade följa med".
+
 ## Browser-automation / dogfooding
 
 När du kör `agent-browser` (screenshots, dogfood-skillen, exploratory testing) —
