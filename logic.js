@@ -311,6 +311,31 @@ function debitorArkiverad(plan, kvittenser, migId) {
   return minaSkulder.every((rad) => rad.kvitterad);
 }
 
+/**
+ * Ska min vy arkiveras? Sant när jag är inblandad i minst en överföring och
+ * ALLA överföringar som rör mig (som avsändare `fran` eller mottagare `till`)
+ * är kvitterade. Detta täcker alla roller korrekt:
+ *   - Ren debitor: alla mina skulder bekräftade → arkiveras (spec: "när alla
+ *     en debitors kreditorer tryckt Reglerat").
+ *   - Ren kreditor: alla som är skyldiga mig är bekräftade (av mig) → arkiveras.
+ *   - Blandad debitor/kreditor: arkiveras först när både mina skulder OCH de
+ *     betalningar jag ska bekräfta är klara — annars skulle jag förlora
+ *     möjligheten att kvittera inkommande betalningar.
+ * Är jag inte inblandad alls (inga rader) → falskt, det finns inget att
+ * arkivera på min inblandning ännu.
+ *
+ * @param {Array<{fran: string, till: string, belopp: number}>} plan
+ * @param {Array<{fran: string, till: string, belopp: number}>} kvittenser
+ * @param {string} migId
+ * @returns {boolean}
+ */
+function minRegleringKlar(plan, kvittenser, migId) {
+  const minaRader = matchaPlanMotKvittenser(plan, kvittenser)
+    .filter((rad) => rad.fran === migId || rad.till === migId);
+  if (minaRader.length === 0) return false;
+  return minaRader.every((rad) => rad.kvitterad);
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
     raknaDel,
@@ -327,5 +352,6 @@ if (typeof module !== "undefined") {
     matchaPlanMotKvittenser,
     rumFulltReglerat,
     debitorArkiverad,
+    minRegleringKlar,
   };
 }

@@ -1334,9 +1334,10 @@ function kontrolleraAutoArkivering() {
   if (!s || s.kind !== "rum" || s.reglerad) return;
   const plan = minimeradeOverforingar(utgifter, personer);
   if (plan.length === 0) return; // inget att reglera ännu
-  const harEgnaSkulder = plan.some(rad => rad.fran === migId);
-  if (!harEgnaSkulder) return;   // jag är bara kreditor → inget att arkivera
-  if (debitorArkiverad(plan, _kvittenser, migId)) {
+  // Arkivera min vy när alla överföringar som rör mig (som debitor eller
+  // kreditor) är kvitterade. En ren kreditor arkiveras när hen bekräftat alla
+  // inkommande betalningar; en debitor när alla dess skulder är bekräftade.
+  if (minRegleringKlar(plan, _kvittenser, migId)) {
     s.reglerad = true;
     sparaSessionsMeta();
     stangModal("reglera-modal");

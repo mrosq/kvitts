@@ -15,6 +15,7 @@ const {
   matchaPlanMotKvittenser,
   rumFulltReglerat,
   debitorArkiverad,
+  minRegleringKlar,
 } = require("./logic");
 
 // ---------------------------------------------------------------------------
@@ -935,6 +936,79 @@ describe("debitorArkiverad", () => {
       { fran: "p2", till: "p3", belopp: 999 }, // fel belopp → stale
     ];
     assert.equal(debitorArkiverad(PLAN, kv, "p2"), false);
+  });
+});
+
+describe("minRegleringKlar", () => {
+  // p2 skyldig p1 (100), p2 skyldig p3 (50), p4 skyldig p1 (200)
+  const PLAN = [
+    { fran: "p2", till: "p1", belopp: 100 },
+    { fran: "p2", till: "p3", belopp: 50 },
+    { fran: "p4", till: "p1", belopp: 200 },
+  ];
+
+  it("ren debitor: arkiveras när alla egna skulder bekräftade", () => {
+    const kv = [
+      { fran: "p2", till: "p1", belopp: 100 },
+      { fran: "p2", till: "p3", belopp: 50 },
+    ];
+    // p2 äger inga inkommande → klar när egna skulder bekräftade.
+    assert.equal(minRegleringKlar(PLAN, kv, "p2"), true);
+  });
+
+  it("ren debitor arkiveras även om ANDRA debitorer inte reglerat", () => {
+    // p2 klar, men p4 (annan debitor) har inte reglerat → p2 arkiveras ändå.
+    const kv = [
+      { fran: "p2", till: "p1", belopp: 100 },
+      { fran: "p2", till: "p3", belopp: 50 },
+    ];
+    assert.equal(minRegleringKlar(PLAN, kv, "p2"), true);
+    assert.equal(minRegleringKlar(PLAN, kv, "p4"), false);
+  });
+
+  it("ren kreditor: arkiveras först när ALLA inkommande bekräftats", () => {
+    // p1 är mottagare för p2→p1 och p4→p1. Bara p2→p1 bekräftad → ej klar.
+    const delvis = [{ fran: "p2", till: "p1", belopp: 100 }];
+    assert.equal(minRegleringKlar(PLAN, delvis, "p1"), false);
+    // Båda inkommande bekräftade → p1 klar.
+    const bada = [
+      { fran: "p2", till: "p1", belopp: 100 },
+      { fran: "p4", till: "p1", belopp: 200 },
+    ];
+    assert.equal(minRegleringKlar(PLAN, bada, "p1"), true);
+  });
+
+  it("blandad debitor+kreditor: arkiveras först när BÅDE skuld och inkommande klar", () => {
+    // p2 är skyldig p1 (fran) och får av... nej — konstruera blandat fall:
+    // p3 är kreditor (p2→p3) OCH debitor om vi lägger p3→p1. Bygg egen plan.
+    const planBlandad = [
+      { fran: "p2", till: "p3", belopp: 50 },  // p3 mottagare (kreditor)
+      { fran: "p3", till: "p1", belopp: 30 },  // p3 avsändare (debitor)
+    ];
+    // Bara p3:s egen skuld (p3→p1) bekräftad, men p2→p3 ej → p3 måste stanna
+    // kvar för att kunna bekräfta p2:s betalning.
+    const baraEgenSkuld = [{ fran: "p3", till: "p1", belopp: 30 }];
+    assert.equal(minRegleringKlar(planBlandad, baraEgenSkuld, "p3"), false);
+    // Debitor-only-regeln hade felaktigt arkiverat p3 här:
+    assert.equal(debitorArkiverad(planBlandad, baraEgenSkuld, "p3"), true);
+    // Båda rader som rör p3 bekräftade → nu klar.
+    const bada = [
+      { fran: "p3", till: "p1", belopp: 30 },
+      { fran: "p2", till: "p3", belopp: 50 },
+    ];
+    assert.equal(minRegleringKlar(planBlandad, bada, "p3"), true);
+  });
+
+  it("person utan inblandning i planen → ej klar (inget att arkivera på)", () => {
+    assert.equal(minRegleringKlar(PLAN, [], "p9"), false);
+  });
+
+  it("stale kvittens som rör mig → ej klar", () => {
+    const kv = [
+      { fran: "p2", till: "p1", belopp: 100 },
+      { fran: "p4", till: "p1", belopp: 999 }, // stale
+    ];
+    assert.equal(minRegleringKlar(PLAN, kv, "p1"), false);
   });
 });
 
