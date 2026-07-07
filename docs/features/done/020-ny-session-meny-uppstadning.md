@@ -32,4 +32,19 @@ Tre knappar, tre tydliga destinationer. Ingen mellanskärm.
 
 ## När levererad
 
-*(Fylls i efter leverans.)*
+Levererad 2026-07-07.
+
+Den generiska "＋ Ny session"-knappen i inställningsmenyn ersattes med två
+tydliga knappar:
+
+- **＋ Skapa nytt rum** → `skapaRumFranMeny()` stänger menyn, nollställer ev.
+  kvarhängande skapa-rum-state (`_rumSkapat`, `_joinMemberToken`) och navigerar
+  direkt till skapa-rum-skärmen (`visaSkapaRum`).
+- **＋ Ny lokal session** → återanvänder befintliga `visaNySessionForm()`
+  (namn-formuläret "som idag").
+
+**Avgränsning:** Den tredje föreslagna knappen, "＋ Gå med i ett nytt rum",
+byggdes medvetet inte. Att gå med i ett rum sker uteslutande via en
+inbjudningslänk (`/r/<id>`) — det finns ingen skärm för att manuellt ange en
+rumskod, och att bygga en sådan bedömdes ligga utanför den här uppstädningen.
+

@@ -1319,6 +1319,14 @@ function vaxlaTillSessionFranMeny(id) {
 }
 
 // NY SESSION-FORM
+function skapaRumFranMeny() {
+  stangModal("meny-modal");
+  // Nollställ ev. kvarhängande skapa-rum-state så ett nytt rum skapas rent.
+  _rumSkapat = null;
+  _joinMemberToken = "";
+  visaSkapaRum();
+}
+
 function visaNySessionForm() {
   stangModal("meny-modal");
   document.getElementById("ny-session-namn").value = "";
