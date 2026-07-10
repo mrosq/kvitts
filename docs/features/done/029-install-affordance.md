@@ -63,9 +63,13 @@ Två saker, i linje med appens avskalade stil (ingen påträngande nag):
 Byggt enligt spec:
 
 - **Engångs-toast** (`#install-toast`, mörk pill nederst) som visas en gång
-  när appen är synlig och installation är möjlig. Flaggan
+  när installation är möjlig. Flaggan
   `kvitts_install_toast_visad` i localStorage sätts när den visas → kommer
   aldrig igen. Auto-döljs efter 8 s, och har **Installera**-knapp + kryss.
+  Visas på **beslutssidan** (rum vs lokal, `intro-2`), på
+  **inbjudnings-landningen** (`intro-bekrafta-join` / `intro-atersta-ll`)
+  och inne i appen — men inte mitt i inmatningsflöden. Styrs av
+  `installToastTillaten()`.
 - **Permanent menyrad** "📲 Installera app" (`#meny-installera-btn`) i
   Inställningar, visas bara när `installMojlig()` är sann.
 - **Plattformslogik i `app.js`:** fångar `beforeinstallprompt` (Android/

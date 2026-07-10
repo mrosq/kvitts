@@ -339,6 +339,7 @@ function visaSkarm1() {
 function visaSkarm2() {
   doljAllaSkärmar();
   document.getElementById("intro-2").style.display = "flex";
+  kanskeVisaInstallToast();
 }
 
 function visaSkarm3a() {
@@ -1801,6 +1802,7 @@ function visaAterstallningsFragan() {
   document.getElementById("atersta-ll-rubrik").textContent = "Välkommen till \"" + (r ? r.roomNamn : "gruppen") + "\"";
   document.getElementById("atersta-ll-text").textContent = "Är du ny här, eller har du varit med förut?";
   document.getElementById("intro-atersta-ll").style.display = "flex";
+  kanskeVisaInstallToast();
 }
 
 function visaIdentifierareFormular() {
@@ -1895,6 +1897,7 @@ function visaBekraftaJoin() {
     namnInp.focus();
   }
   uppdateraBekraftaJoinKnapp();
+  kanskeVisaInstallToast();
 }
 
 function uppdateraBekraftaJoinKnapp() {
@@ -2067,11 +2070,21 @@ function uppdateraInstallUI() {
   if (btn) btn.style.display = installMojlig() ? "block" : "none";
 }
 
-// Visar engångs-toasten om den inte redan visats och appen är synlig.
+// Skärmar där toasten får dyka upp: beslutssidan (rum vs lokal),
+// inbjudnings-landningen och själva appen. Inte mitt i inmatningsflöden.
+function installToastTillaten() {
+  if (document.getElementById("app").style.display === "block") return true;
+  return ["intro-2", "intro-bekrafta-join", "intro-atersta-ll"].some(id => {
+    const el = document.getElementById(id);
+    return el && el.style.display !== "none";
+  });
+}
+
+// Visar engångs-toasten om den inte redan visats och vi är på en tillåten skärm.
 function kanskeVisaInstallToast() {
   if (localStorage.getItem(INSTALL_TOAST_NYCKEL)) return;
   if (!installMojlig()) return;
-  if (document.getElementById("app").style.display !== "block") return;
+  if (!installToastTillaten()) return;
   setTimeout(visaInstallToast, 1400);
 }
 
