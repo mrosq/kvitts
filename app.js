@@ -31,6 +31,7 @@ let splitModalTempEgna = {};
 let _joinEpost = "";           // sparas tillfälligt under join-flödet
 let _joinMemberToken = "";     // genereras vid join, visas i bekräftelseskärm
 let _joinRumForAterstall = null; // { roomId, roomNamn } – under återanslutningsflödet
+let _joinFranAterstall = null; // { roomId, roomNamn } – satt när join-flödet nåtts via inbjudningslänk, för att kunna gå tillbaka
 
 // 017: kvittenser (settlements) för aktivt rum. Speglar `settlements`-tabellen.
 let _kvittenser = [];          // [{ fran, till, belopp }]
@@ -1792,8 +1793,8 @@ async function forsokTokenAteranslutning(memberToken) {
 function visaAterstallningsFragan() {
   doljAllaSkärmar();
   const r = _joinRumForAterstall;
-  document.getElementById("atersta-ll-rubrik").textContent = "Välkommen tillbaka till \"" + (r ? r.roomNamn : "rummet") + "\"";
-  document.getElementById("atersta-ll-text").textContent = "Har du varit med i det här rummet förut?";
+  document.getElementById("atersta-ll-rubrik").textContent = "Välkommen till \"" + (r ? r.roomNamn : "gruppen") + "\"";
+  document.getElementById("atersta-ll-text").textContent = "Är du ny här, eller har du varit med förut?";
   document.getElementById("intro-atersta-ll").style.display = "flex";
 }
 
@@ -1843,6 +1844,7 @@ function fortsattSomNy() {
   if (!_joinRumForAterstall) return;
   const r = _joinRumForAterstall;
   _joinRumForAterstall = null;
+  _joinFranAterstall = { roomId: r.roomId, roomNamn: r.roomNamn };
   _rumForJoin = { roomId: r.roomId, roomNamn: r.roomNamn };
   visaBekraftaJoin();
 }
@@ -1850,6 +1852,7 @@ function fortsattSomNy() {
 async function startaJoinFlode(roomId) {
   // Kommer hit direkt vid laddning av /r/<id>. Slå upp rummet och visa
   // bekräftelseskärmen om det finns.
+  _joinFranAterstall = null;
   try {
     const rum = await KvittsSupabase.haRum(roomId);
     if (!rum) {
@@ -1993,6 +1996,14 @@ function gaInEfterIdentitet() {
 
 function avbrytJoin() {
   _rumForJoin = null;
+  // Kom vi hit via en inbjudningslänk (återställningsfrågan)? Gå tillbaka dit
+  // istället för till startsidan, så inbjudan inte tappas.
+  if (_joinFranAterstall) {
+    _joinRumForAterstall = _joinFranAterstall;
+    _joinFranAterstall = null;
+    visaAterstallningsFragan();
+    return;
+  }
   if (window.history && window.history.replaceState) {
     window.history.replaceState({}, "", "/");
   }
@@ -2024,5 +2035,15 @@ document.addEventListener("visibilitychange", () => {
 });
 
 window.addEventListener("beforeunload", stoppPolling);
+
+// Registrera service worker för PWA/offline (se docs/features/015-pwa.md).
+// Bakom feature-check och endast över http(s) – från file:// registreras den inte.
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch((err) => {
+      console.warn("Service worker kunde inte registreras:", err);
+    });
+  });
+}
 
 init();

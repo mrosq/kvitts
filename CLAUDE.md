@@ -19,7 +19,8 @@ Deployad på Vercel — varje push till `main` deployer automatiskt.
 
 ## Stack-val (medvetna)
 
-- **Vanilla JS, single-file HTML.** Inget ramverk, inget byggsteg. Introducera inte React/Vue/build tools utan att det diskuterats — hela poängen är att `index.html` ska kunna öppnas som en fil.
+- **Vanilla JS, ingen byggsteg.** Inget ramverk, ingen bundler. Introducera inte React/Vue/build tools utan att det diskuterats.
+- **Körsätt:** primärt Vercel (prod) eller lokal http-server (`python -m http.server 8000`). Appen fungerar fortfarande som vanlig sida öppnad direkt via `file://`, men PWA-lagret (service worker) aktiveras bara över http(s). Den ursprungliga "öppna `index.html` som en fil"-ambitionen är numera historisk — koden är redan uppdelad i flera JS-filer, och PWA kräver http-servering.
 - **Svenska i UI, kommentarer och funktionsnamn.** `raknaDel`, `utgifter`, `betalare` osv. Behåll svenska när du lägger till kod.
 
 ## Kodstruktur
@@ -80,4 +81,6 @@ i working directory — de läcker in i status och råkar committas.
 
 ## Deploy
 
-Vercel är kopplat till `main`-branchen i GitHub-repot `mrosq/kvitts`. Ingen manuell deploy-kommando. Live-URL:en delas inte publikt (security-through-obscurity — OK eftersom data är per-användare i localStorage).
+Vercel är kopplat till `main`-branchen i GitHub-repot `mrosq/kvitts`. Ingen manuell deploy-kommando.
+
+**PWA cache-busting:** appen har en service worker (`sw.js`) som cachar app-skalet cache-first. Vid deploys som ändrar cachade assets (`index.html`, `app.js`, `logic.js`, `supabase.js`, `config.js`, `manifest.json` eller ikonerna) — **bumpa `CACHE_NAME` överst i `sw.js`** (`kvitts-v1` → `kvitts-v2` osv). Annars fortsätter gamla klienter servera den gamla versionen ur cachen. Ikoner genereras om med `node tools/generera-ikoner.js`. Live-URL:en delas inte publikt (security-through-obscurity — OK eftersom data är per-användare i localStorage).

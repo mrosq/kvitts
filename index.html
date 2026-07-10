@@ -3,6 +3,12 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Kvitts</title>
+<link rel="manifest" href="/manifest.json"/>
+<meta name="theme-color" content="#c84b2f"/>
+<link rel="apple-touch-icon" href="/icon-192.png"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="Kvitts"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 <style>
   :root {
@@ -39,7 +45,7 @@
     to   { opacity: 1; transform: translateY(0); }
   }
   .intro-skarm h1 { font-size: 1.3rem; }
-  .intro-skarm > p { color: var(--muted); max-width: 280px; line-height: 1.5; }
+  .intro-skarm > p { color: var(--muted); max-width: 280px; line-height: 1.35; font-size: 0.9rem; }
   .setup-input {
     width: 100%; padding: 0.9rem 1rem; border: 2px solid var(--border);
     border-radius: var(--radius); font-size: 1rem; font-family: 'DM Sans', sans-serif;
@@ -434,16 +440,16 @@
 </div>
 
 <div id="intro-2" class="intro-skarm" style="display:none">
-  <h1>Kom igång</h1>
-  <p>Hur vill du använda appen?</p>
+  <h1>Dela utgifter, enkelt</h1>
+  <p>Dela utgifter mellan er under resan, festen eller kollektivet. Lägg in vad som betalats — Kvitts räknar ut vem som är skyldig vem. Ingen inloggning, inget krav.</p>
   <div class="lagesval-knappar">
     <button class="lagesval-kort" onclick="visaSkarm1()">
       <strong>Jag håller reda på allas utgifter</strong>
-      <span>Du lägger in alla utgifter på din enhet. Inget konto behövs.</span>
+      <span>Du för in allt på din enhet. Inget konto behövs.</span>
     </button>
     <button class="lagesval-kort" onclick="visaSkapaRum()">
-      <strong>Vi lägger in utgifter var för sig</strong>
-      <span>Varje person lägger in sina egna utgifter på sin egen telefon.</span>
+      <strong>Vi för in utgifter var för sig</strong>
+      <span>Alla i gruppen lägger in sina egna, från sin telefon.</span>
     </button>
   </div>
 </div>
@@ -543,13 +549,13 @@
   <h1 id="atersta-ll-rubrik">Välkommen tillbaka</h1>
   <p id="atersta-ll-text"></p>
   <div class="lagesval-knappar">
-    <button class="lagesval-kort" onclick="visaIdentifierareFormular()">
-      <strong>Ja, återställ min session</strong>
-      <span>Skriv in din e-postadress för att komma tillbaka som du.</span>
-    </button>
     <button class="lagesval-kort" onclick="fortsattSomNy()">
-      <strong>Nej, jag är ny</strong>
+      <strong>Jag är ny</strong>
       <span>Gå med som ny deltagare.</span>
+    </button>
+    <button class="lagesval-kort" onclick="visaIdentifierareFormular()">
+      <strong>Jag har varit med förut</strong>
+      <span>Skriv in din e-postadress för att komma tillbaka som du.</span>
     </button>
   </div>
 </div>
