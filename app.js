@@ -455,6 +455,10 @@ function visaApp() {
     stoppPolling();
     uppdatera();
   }
+
+  // 029: uppdatera install-UI och visa ev. engångs-toast
+  uppdateraInstallUI();
+  kanskeVisaInstallToast();
 }
 
 function populeraBetalarDropdowns() {
@@ -1413,6 +1417,7 @@ function visaMeny() {
   document.getElementById("meny-fil-rad").style.display = erRum ? "none" : "flex";
   // Spara-knappen visas om det finns utgifter i aktiv lokal session
   document.getElementById("meny-spara-btn").style.display = (!erRum && utgifter.length > 0) ? "block" : "none";
+  uppdateraInstallUI();
   document.getElementById("meny-modal").classList.add("visa");
 }
 function stangMenyVidKlickUtanfor(event) {
@@ -2035,6 +2040,83 @@ document.addEventListener("visibilitychange", () => {
 });
 
 window.addEventListener("beforeunload", stoppPolling);
+
+// 029: install-affordance (se docs/features/029-install-affordance.md).
+// Toast första gången + permanent länk i menyn. iOS saknar beforeinstallprompt
+// och får en manuell instruktion istället.
+let _installPrompt = null; // sparad beforeinstallprompt-event (Android/desktop)
+let _installToastTimer = null;
+const INSTALL_TOAST_NYCKEL = "kvitts_install_toast_visad";
+
+function appArInstallerad() {
+  return window.matchMedia("(display-mode: standalone)").matches
+    || window.navigator.standalone === true; // iOS
+}
+function arIOS() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+}
+// Installation möjlig när vi har ett sparat prompt-event (Android/desktop)
+// eller kör iOS Safari (manuell väg), och appen inte redan är installerad.
+function installMojlig() {
+  if (appArInstallerad()) return false;
+  return !!_installPrompt || arIOS();
+}
+
+function uppdateraInstallUI() {
+  const btn = document.getElementById("meny-installera-btn");
+  if (btn) btn.style.display = installMojlig() ? "block" : "none";
+}
+
+// Visar engångs-toasten om den inte redan visats och appen är synlig.
+function kanskeVisaInstallToast() {
+  if (localStorage.getItem(INSTALL_TOAST_NYCKEL)) return;
+  if (!installMojlig()) return;
+  if (document.getElementById("app").style.display !== "block") return;
+  setTimeout(visaInstallToast, 1400);
+}
+
+function visaInstallToast() {
+  if (localStorage.getItem(INSTALL_TOAST_NYCKEL)) return;
+  const el = document.getElementById("install-toast");
+  if (!el || !installMojlig()) return;
+  localStorage.setItem(INSTALL_TOAST_NYCKEL, "1"); // visas bara en gång totalt
+  el.hidden = false;
+  requestAnimationFrame(() => el.classList.add("visa"));
+  _installToastTimer = setTimeout(doljInstallToast, 8000);
+}
+
+function doljInstallToast() {
+  const el = document.getElementById("install-toast");
+  if (!el) return;
+  clearTimeout(_installToastTimer);
+  el.classList.remove("visa");
+  setTimeout(() => { el.hidden = true; }, 260);
+}
+
+async function installeraApp() {
+  doljInstallToast();
+  stangModal("meny-modal");
+  if (_installPrompt) {
+    _installPrompt.prompt();
+    await _installPrompt.userChoice;
+    _installPrompt = null;
+    uppdateraInstallUI();
+  } else if (arIOS()) {
+    document.getElementById("install-ios-modal").classList.add("visa");
+  }
+}
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  _installPrompt = e;
+  uppdateraInstallUI();
+  kanskeVisaInstallToast();
+});
+window.addEventListener("appinstalled", () => {
+  _installPrompt = null;
+  doljInstallToast();
+  uppdateraInstallUI();
+});
 
 // Registrera service worker för PWA/offline (se docs/features/015-pwa.md).
 // Bakom feature-check och endast över http(s) – från file:// registreras den inte.
