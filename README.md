@@ -11,7 +11,7 @@ Du lägger in alla utgifter på din enhet. Data sparas i webbläsarens `localSto
 Spara/ladda-knappen ger en JSON-fil för backup eller för att flytta data mellan enheter.
 
 **Vi lägger in utgifter var för sig** — databasdrivet via Supabase.
-Varje person lägger in sina egna utgifter på sin telefon. Du skapar ett rum och
+Varje person lägger in sina egna utgifter på sin telefon. Du skapar en grupp och
 delar länken; de andra går med via länken. Ändringar synkas i realtid.
 
 ## Kör lokalt

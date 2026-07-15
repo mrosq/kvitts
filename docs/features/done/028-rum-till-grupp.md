@@ -68,5 +68,33 @@ Behåll svenska konventionen (`grupp`, `gruppen`, `skapaGrupp` osv.).
 
 ## När levererad
 
-Lägg till en kort sammanfattning av vad som faktiskt byggdes (kan skilja från
-ursprunglig spec) och flytta filen till `docs/features/done/`.
+Levererad 2026-07-15. Genomförd som ett rent klient-namnbyte *rum → grupp*;
+**databasen lämnades orörd** (tabell `rooms`, kolumn `room_id`, settlements-fält
+kvar) — billigare och nollrisk, "rum" syns inte längre någonstans klienten eller
+utvecklaren möter. Ingen bakåtkompatibilitet behölls (utvecklingsprojekt).
+
+Vad som gjordes:
+
+- **UI (index.html):** "Skapa rum" → "Skapa grupp", "Rummet finns inte längre"
+  → "Gruppen finns inte längre", element-id:n `intro-skapa-rum`, `skapa-rum-*`,
+  `intro-rum-skapat`, `rum-skapat-*`, `rum-borttaget-skarm` m.fl. → `*grupp*`.
+- **JS-symboler (app.js, supabase.js, logic.js):** `skapaRum`→`skapaGrupp`,
+  `haRum`→`haGrupp`, `gaMedIRum`→`gaMedIGrupp`, `laggTillUtgiftRum`/
+  `raderaUtgiftRum`→`*Grupp`, `aktivRumData`→`aktivGruppData`,
+  `uppdateraRumHeader`→`uppdateraGruppHeader`, `_renderaRegleraRum`→`*Grupp`,
+  `parseRumSokvag`→`parseGruppSokvag`, `roomMemberKey`→`gruppMemberKey`,
+  `rumFulltReglerat`→`gruppFulltReglerat`, samt hela skapa/join-flödet
+  (`_rumSkapat`, `_rumForJoin`, `_joinRumForAterstall`, `skapaRumSession`, …).
+  Klient-kontraktets nycklar `roomId`/`roomNamn` → `gruppId`/`gruppNamn`.
+  Session-`kind` `"rum"` → `"grupp"`. **DB-fältet `room_id` som kommer tillbaka
+  från Supabase behölls oförändrat.**
+- **URL:** `/r/<id>` → `/g/<id>` (regex + `gruppUrl` + `vercel.json`-rewrite).
+  Gamla `/r/`-länkar stöds inte längre.
+- **localStorage:** nyckelformatet `kvitts_room_<id>_member_id` →
+  `kvitts_grupp_<id>_member_id` (ingen migrering — dev).
+- **Tester:** `logic.test.js` uppdaterad, 113 tester gröna.
+- **Docs:** README uppdaterad; `sw.js` `CACHE_NAME` bumpad `v3`→`v4`.
+
+Ej gjort (medvetet): DB-rename, och terminologin i öppna framtidsspecar
+(022–027) som fortfarande säger "rum" — de får byta när/om de byggs.
+

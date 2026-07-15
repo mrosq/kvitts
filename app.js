@@ -30,10 +30,10 @@ let splitModalTempEgna = {};
 // 018b: state för join/återanslutningsflödet
 let _joinEpost = "";           // sparas tillfälligt under join-flödet
 let _joinMemberToken = "";     // genereras vid join, visas i bekräftelseskärm
-let _joinRumForAterstall = null; // { roomId, roomNamn } – under återanslutningsflödet
-let _joinFranAterstall = null; // { roomId, roomNamn } – satt när join-flödet nåtts via inbjudningslänk, för att kunna gå tillbaka
+let _joinGruppForAterstall = null; // { gruppId, gruppNamn } – under återanslutningsflödet
+let _joinFranAterstall = null; // { gruppId, gruppNamn } – satt när join-flödet nåtts via inbjudningslänk, för att kunna gå tillbaka
 
-// 017: kvittenser (settlements) för aktivt rum. Speglar `settlements`-tabellen.
+// 017: kvittenser (settlements) för aktiv grupp. Speglar `settlements`-tabellen.
 let _kvittenser = [];          // [{ fran, till, belopp }]
 
 function syncaPersonAlias() {
@@ -164,7 +164,7 @@ function laddaSessionsData(id) {
 
 function sparaAktivSessionsData() {
   if (!aktivSessionId) return;
-  // Bevara extra fält (roomId, personId, kind) som finns i befintlig data.
+  // Bevara extra fält (gruppId, personId, kind) som finns i befintlig data.
   const befintlig = laddaSessionsData(aktivSessionId) || {};
   const data = { ...befintlig, personer, migId, utgifter };
   localStorage.setItem(sessionDataKey(aktivSessionId), JSON.stringify(data));
@@ -276,21 +276,21 @@ async function init() {
     // Misslyckades — URL städad, fortsätt normal init nedan
   }
 
-  // Rum-länk har företräde — men kolla om vi redan har en session för rummet.
-  const rumId = parseRumSokvag(window.location.pathname);
-  if (rumId) {
-    const befintligRumSession = sessions.find(s => {
-      if (s.kind !== "rum") return false;
+  // Grupp-länk har företräde — men kolla om vi redan har en session för gruppen.
+  const gruppId = parseGruppSokvag(window.location.pathname);
+  if (gruppId) {
+    const befintligGruppSession = sessions.find(s => {
+      if (s.kind !== "grupp") return false;
       const d = laddaSessionsData(s.id);
-      return d && d.roomId === rumId;
+      return d && d.gruppId === gruppId;
     });
-    if (befintligRumSession) {
+    if (befintligGruppSession) {
       // Redan med — gå direkt in utan join-flöde
       if (window.history && window.history.replaceState) window.history.replaceState({}, "", "/");
-      vaxlaTillSession(befintligRumSession.id);
+      vaxlaTillSession(befintligGruppSession.id);
     } else {
       // 018a + 018b: tyst återanslutning eller erbjud återanslutningsflöde
-      forsokTystAteranslutning(rumId);
+      forsokTystAteranslutning(gruppId);
     }
     return;
   }
@@ -353,7 +353,7 @@ function visaSkarm3a() {
 function doljAllaSkärmar() {
   document.querySelectorAll(".intro-skarm").forEach(el => el.style.display = "none");
   document.getElementById("app").style.display = "none";
-  document.getElementById("rum-borttaget-skarm").style.display = "none";
+  document.getElementById("grupp-borttaget-skarm").style.display = "none";
   document.getElementById("topbar-meny").hidden = true;
   document.querySelector(".brand-topbar").classList.remove("kompakt");
   stoppPolling();
@@ -408,7 +408,7 @@ function sparaSetup() {
 
 function visaApp() {
   document.querySelectorAll(".intro-skarm").forEach(el => el.style.display = "none");
-  document.getElementById("rum-borttaget-skarm").style.display = "none";
+  document.getElementById("grupp-borttaget-skarm").style.display = "none";
   document.getElementById("app").style.display = "block";
   document.getElementById("topbar-meny").hidden = false;
   document.querySelector(".brand-topbar").classList.add("kompakt");
@@ -417,8 +417,8 @@ function visaApp() {
 
   const s = aktivSession();
   const subtitleEl = document.getElementById("app-subtitle");
-  if (s && s.kind === "rum") {
-    // Rum-header uppdateras igen av uppdateraRumHeader() efter polling-svar.
+  if (s && s.kind === "grupp") {
+    // Grupp-header uppdateras igen av uppdateraGruppHeader() efter polling-svar.
     const antalPersoner = personer.length;
     const personerTxt = antalPersoner === 1 ? "1 person" : antalPersoner + " personer";
     subtitleEl.textContent = s.namn + " · " + personerTxt;
@@ -449,7 +449,7 @@ function visaApp() {
 
   resetDatum();
 
-  if (s && s.kind === "rum") {
+  if (s && s.kind === "grupp") {
     startaPolling();
     refreshDeltagareOchUtgifter(true);
   } else {
@@ -693,12 +693,12 @@ async function laggTillUtgift() {
     egnaBelopp: splitTyp === "egna" ? { ...splitEgna } : undefined,
   };
 
-  const rum = aktivRumData();
-  if (rum) {
+  const grupp = aktivGruppData();
+  if (grupp) {
     const btn = document.getElementById("btn-lagg-till");
     btn.disabled = true;
     try {
-      await KvittsSupabase.laggTillUtgiftRum(rum.roomId, nyUtgift, rum.personId);
+      await KvittsSupabase.laggTillUtgiftGrupp(grupp.gruppId, nyUtgift, grupp.personId);
       await refreshUtgifter();
     } catch (e) {
       alert("Kunde inte spara utgiften: " + (e.message || e));
@@ -798,8 +798,8 @@ async function sparaEdit() {
     egnaBelopp: editSplitTyp === "egna" ? { ...editSplitEgna } : null,
   };
 
-  const rum = aktivRumData();
-  if (rum) {
+  const grupp = aktivGruppData();
+  if (grupp) {
     try {
       await KvittsSupabase.uppdateraUtgift(editId, patch);
       stangModal("edit-modal");
@@ -820,10 +820,10 @@ async function sparaEdit() {
 async function raderaUtgift() {
   if (!confirm("Ta bort utgiften?")) return;
 
-  const rum = aktivRumData();
-  if (rum) {
+  const grupp = aktivGruppData();
+  if (grupp) {
     try {
-      await KvittsSupabase.raderaUtgiftRum(editId);
+      await KvittsSupabase.raderaUtgiftGrupp(editId);
       stangModal("edit-modal");
       await refreshUtgifter();
     } catch (e) {
@@ -950,13 +950,13 @@ let _regleraLage = "parvisa";
 
 function _renderaRegleraLista() {
   const s = aktivSession();
-  if (s && s.kind === "rum") {
-    _renderaRegleraRum();
+  if (s && s.kind === "grupp") {
+    _renderaRegleraGrupp();
     return;
   }
 
   // Lokala sessioner: befintligt beteende (markera hela sessionen som reglerad).
-  _sattRegleraKnappar({ rum: false });
+  _sattRegleraKnappar({ grupp: false });
   const saldoMig = raknaUtSaldo(utgifter, personer)[migId] || 0;
   const allaNetton = Object.values(raknaUtSaldo(utgifter, personer));
   const nollat = allaNetton.every(v => Math.abs(v) < 0.01);
@@ -1001,11 +1001,11 @@ function _renderaRegleraLista() {
   lista.innerHTML = rader.join("<br>") + "<br><br>När ni gjort upp: bekräfta för att markera sessionen som reglerad.";
 }
 
-// 017: Reglera-vy för rum. Utgår från den optimerade planen och visar
+// 017: Reglera-vy för grupp. Utgår från den optimerade planen och visar
 // kvitterings-status per överföring. Kreditorn (till === migId) får en knapp;
 // debitorn ser en statusindikator. Arkivering sker automatiskt via polling.
-function _renderaRegleraRum() {
-  _sattRegleraKnappar({ rum: true });
+function _renderaRegleraGrupp() {
+  _sattRegleraKnappar({ grupp: true });
   document.getElementById("reglera-toggle-wrap").style.display = "none";
   const lista = document.getElementById("reglera-lista");
 
@@ -1056,10 +1056,10 @@ function _renderaRegleraRum() {
 }
 
 // Styr modalens footer-knappar beroende på läge.
-function _sattRegleraKnappar({ rum }) {
+function _sattRegleraKnappar({ grupp }) {
   const bekrafta = document.getElementById("reglera-btn-bekrafta");
   const stang = document.getElementById("reglera-btn-stang");
-  if (rum) {
+  if (grupp) {
     bekrafta.style.display = "none";
     stang.textContent = "Stäng";
     stang.style.flex = "1";
@@ -1072,10 +1072,10 @@ function _sattRegleraKnappar({ rum }) {
 
 // 017: Kreditorn bekräftar att en debitor betalat.
 async function kvitteraFran(franId, belopp) {
-  const rum = aktivRumData();
-  if (!rum) return;
+  const grupp = aktivGruppData();
+  if (!grupp) return;
   try {
-    await KvittsSupabase.kvitteraOverforing(rum.roomId, franId, migId, belopp);
+    await KvittsSupabase.kvitteraOverforing(grupp.gruppId, franId, migId, belopp);
     await refreshDeltagareOchUtgifter(true);
   } catch (e) {
     console.error("Kunde inte kvittera:", e);
@@ -1085,10 +1085,10 @@ async function kvitteraFran(franId, belopp) {
 
 // 017: Ångra en kvittens (kreditorn tryckte fel).
 async function angraKvittens(franId) {
-  const rum = aktivRumData();
-  if (!rum) return;
+  const grupp = aktivGruppData();
+  if (!grupp) return;
   try {
-    await KvittsSupabase.avKvitteraOverforing(rum.roomId, franId, migId);
+    await KvittsSupabase.avKvitteraOverforing(grupp.gruppId, franId, migId);
     await refreshDeltagareOchUtgifter(true);
   } catch (e) {
     console.error("Kunde inte ångra kvittens:", e);
@@ -1200,7 +1200,7 @@ function spara() {
 }
 
 // =============================================================================
-// RUM-UTGIFTER (feature 004b) + OFFLINE-HANTERING (004c)
+// GRUPP-UTGIFTER (feature 004b) + OFFLINE-HANTERING (004c)
 // =============================================================================
 
 let _offlineMode = false;
@@ -1218,7 +1218,7 @@ function sattOfflineMode(offline) {
   }
 }
 
-function visaRumBorttaget() {
+function visaGruppBorttaget() {
   // Rensa aktiv session och ta användaren tillbaka till menyn
   const s = aktivSession();
   if (s) {
@@ -1229,11 +1229,11 @@ function visaRumBorttaget() {
   stoppPolling();
   doljAllaSkärmar();
   // Visa ett enkelt felmeddelande via intro-skärm-mönster
-  const el = document.getElementById("rum-borttaget-skarm");
+  const el = document.getElementById("grupp-borttaget-skarm");
   if (el) {
     el.style.display = "flex";
   } else {
-    alert("Rummet finns inte längre.");
+    alert("Gruppen finns inte längre.");
     if (sessions.length > 0) {
       const nyAktiv = sessions.find(s => !s.reglerad) || sessions[0];
       vaxlaTillSession(nyAktiv.id);
@@ -1243,19 +1243,19 @@ function visaRumBorttaget() {
   }
 }
 
-function aktivRumData() {
+function aktivGruppData() {
   const s = aktivSession();
-  if (!s || s.kind !== "rum") return null;
+  if (!s || s.kind !== "grupp") return null;
   const data = laddaSessionsData(s.id);
-  return data ? { roomId: data.roomId, personId: data.personId } : null;
+  return data ? { gruppId: data.gruppId, personId: data.personId } : null;
 }
 
 // Uppdaterar lokal utgiftslista från Supabase och renderar om.
 async function refreshUtgifter() {
-  const rum = aktivRumData();
-  if (!rum) return;
+  const grupp = aktivGruppData();
+  if (!grupp) return;
   try {
-    const fraBackend = await KvittsSupabase.hamtaUtgifter(rum.roomId);
+    const fraBackend = await KvittsSupabase.hamtaUtgifter(grupp.gruppId);
     sattOfflineMode(false);
     const forut = JSON.stringify(utgifter);
     utgifter = fraBackend;
@@ -1269,13 +1269,13 @@ async function refreshUtgifter() {
 
 // Hämtar även deltagare och synkar lokalt.
 async function refreshDeltagareOchUtgifter(forcera = false) {
-  const rum = aktivRumData();
-  if (!rum) return;
+  const grupp = aktivGruppData();
+  if (!grupp) return;
   try {
     const [fraBackend, deltagare, kvittenser] = await Promise.all([
-      KvittsSupabase.hamtaUtgifter(rum.roomId),
-      KvittsSupabase.hamtaDeltagare(rum.roomId),
-      hamtaKvittenserBestEffort(rum.roomId),
+      KvittsSupabase.hamtaUtgifter(grupp.gruppId),
+      KvittsSupabase.hamtaDeltagare(grupp.gruppId),
+      hamtaKvittenserBestEffort(grupp.gruppId),
     ]);
     sattOfflineMode(false);
     const forutUtgifter = JSON.stringify(utgifter);
@@ -1289,16 +1289,16 @@ async function refreshDeltagareOchUtgifter(forcera = false) {
     if (data) {
       data.utgifter = utgifter;
       data.personer = deltagare.map(m => ({ id: m.id, namn: m.namn }));
-      data.migId = rum.personId;
+      data.migId = grupp.personId;
       personer = data.personer;
-      migId = rum.personId;
+      migId = grupp.personId;
       syncaPersonAlias();
       localStorage.setItem("kvitts_session_" + s.id, JSON.stringify(data));
     }
     const andradPersoner = forcera || JSON.stringify(personer) !== forutPersoner;
     const andradUtgifter = forcera || JSON.stringify(utgifter) !== forutUtgifter;
     const andradKvittenser = forcera || JSON.stringify(_kvittenser) !== forutKvittenser;
-    if (andradPersoner) { uppdateraRumHeader(); populeraBetalarDropdowns(); }
+    if (andradPersoner) { uppdateraGruppHeader(); populeraBetalarDropdowns(); }
     if (andradPersoner || andradUtgifter) uppdatera();
     // Reglera-modalen live-uppdateras om den är öppen och något ändrats.
     if ((andradPersoner || andradUtgifter || andradKvittenser) &&
@@ -1310,10 +1310,10 @@ async function refreshDeltagareOchUtgifter(forcera = false) {
       kontrolleraAutoArkivering();
     }
   } catch (e) {
-    console.error("Kunde inte hämta rum-data:", e);
-    // Kontrollera om rummet är borttaget (404-liknande: inga deltagare returneras alls)
+    console.error("Kunde inte hämta grupp-data:", e);
+    // Kontrollera om gruppen är borttagen (404-liknande: inga deltagare returneras alls)
     if (e && (e.code === "PGRST116" || (e.message && e.message.includes("does not exist")))) {
-      visaRumBorttaget();
+      visaGruppBorttaget();
     } else {
       sattOfflineMode(true);
     }
@@ -1321,11 +1321,11 @@ async function refreshDeltagareOchUtgifter(forcera = false) {
 }
 
 // 017: Hämta kvittenser utan att ett fel (t.ex. att settlements-tabellen inte
-// finns förrän migreringen körts) knockar hela rum-synken. Faller tillbaka på
+// finns förrän migreringen körts) knockar hela grupp-synken. Faller tillbaka på
 // den senast kända listan.
-async function hamtaKvittenserBestEffort(roomId) {
+async function hamtaKvittenserBestEffort(gruppId) {
   try {
-    return await KvittsSupabase.hamtaKvittenser(roomId);
+    return await KvittsSupabase.hamtaKvittenser(gruppId);
   } catch (e) {
     console.warn("Kunde inte hämta kvittenser (fortsätter utan):", e);
     return _kvittenser;
@@ -1337,7 +1337,7 @@ async function hamtaKvittenserBestEffort(roomId) {
 // Kräver att jag faktiskt HAR skulder (annars triggas det direkt för alla).
 function kontrolleraAutoArkivering() {
   const s = aktivSession();
-  if (!s || s.kind !== "rum" || s.reglerad) return;
+  if (!s || s.kind !== "grupp" || s.reglerad) return;
   const plan = minimeradeOverforingar(utgifter, personer);
   if (plan.length === 0) return; // inget att reglera ännu
   // Arkivera min vy när alla överföringar som rör mig (som debitor eller
@@ -1369,10 +1369,10 @@ function stoppPolling() {
   }
 }
 
-// ── Header för rum-läge ──────────────────────────────────────────────────────
-function uppdateraRumHeader() {
+// ── Header för grupp-läge ────────────────────────────────────────────────────
+function uppdateraGruppHeader() {
   const s = aktivSession();
-  if (!s || s.kind !== "rum") return;
+  if (!s || s.kind !== "grupp") return;
   const antalPersoner = personer.length;
   const personerTxt = antalPersoner === 1 ? "1 person" : antalPersoner + " personer";
   const el = document.getElementById("app-subtitle");
@@ -1382,7 +1382,7 @@ function uppdateraRumHeader() {
 
 function subtitleKlick() {
   const s = aktivSession();
-  if (s && s.kind === "rum") visaDeltagare();
+  if (s && s.kind === "grupp") visaDeltagare();
 }
 
 function visaDeltagare() {
@@ -1394,10 +1394,10 @@ function visaDeltagare() {
     const arMig = p.id === migId;
     return `<span class="deltagar-chip${arMig ? " mig" : ""}">${esc(p.namn)}${arMig ? " (du)" : ""}</span>`;
   }).join("");
-  const rum = aktivRumData();
+  const grupp = aktivGruppData();
   const lankEl = document.getElementById("deltagare-modal-lank");
-  if (rum && lankEl) {
-    lankEl.textContent = rumUrl(rum.roomId);
+  if (grupp && lankEl) {
+    lankEl.textContent = gruppUrl(grupp.gruppId);
   }
   document.getElementById("deltagare-modal").classList.add("visa");
 }
@@ -1410,14 +1410,14 @@ function visaMeny() {
   renderaSessionsLista();
   const reglerad = aktivArReglerad();
   const s = aktivSession();
-  const erRum = !!(s && s.kind === "rum");
+  const erGrupp = !!(s && s.kind === "grupp");
   // Reglera-knappen visas bara när aktiv session är pågående
   const regleraBtn = document.getElementById("meny-reglera-btn");
   if (regleraBtn) regleraBtn.style.display = reglerad || !aktivSessionId ? "none" : "block";
-  // Fil-kontroller är irrelevanta i rum-läge (backend är persistensen)
-  document.getElementById("meny-fil-rad").style.display = erRum ? "none" : "flex";
+  // Fil-kontroller är irrelevanta i grupp-läge (backend är persistensen)
+  document.getElementById("meny-fil-rad").style.display = erGrupp ? "none" : "flex";
   // Spara-knappen visas om det finns utgifter i aktiv lokal session
-  document.getElementById("meny-spara-btn").style.display = (!erRum && utgifter.length > 0) ? "block" : "none";
+  document.getElementById("meny-spara-btn").style.display = (!erGrupp && utgifter.length > 0) ? "block" : "none";
   uppdateraInstallUI();
   document.getElementById("meny-modal").classList.add("visa");
 }
@@ -1478,22 +1478,22 @@ function vaxlaTillSessionFranMeny(id) {
 }
 
 // NY SESSION-FORM
-function skapaRumFranMeny() {
+function skapaGruppFranMeny() {
   stangModal("meny-modal");
-  // Nollställ ev. kvarhängande skapa-rum-state så ett nytt rum skapas rent.
-  _rumSkapat = null;
+  // Nollställ ev. kvarhängande skapa-grupp-state så en ny grupp skapas rent.
+  _gruppSkapat = null;
   _joinMemberToken = "";
   // Kom vi hit från en aktiv session? Då ska "Tillbaka" gå dit, inte till start.
-  _skapaRumRetur = aktivSessionId ? aktivSessionId : null;
-  visaSkapaRum();
+  _skapaGruppRetur = aktivSessionId ? aktivSessionId : null;
+  visaSkapaGrupp();
 }
 
-// "Tillbaka" från skapa-rum: återgå till sessionen man kom från om det fanns
+// "Tillbaka" från skapa-grupp: återgå till sessionen man kom från om det fanns
 // en (öppnad via menyn), annars till lägesvals-skärmen (onboarding-flödet).
-function avbrytSkapaRum() {
-  if (_skapaRumRetur) {
-    const retur = _skapaRumRetur;
-    _skapaRumRetur = null;
+function avbrytSkapaGrupp() {
+  if (_skapaGruppRetur) {
+    const retur = _skapaGruppRetur;
+    _skapaGruppRetur = null;
     if (sessions.some(s => s.id === retur)) {
       vaxlaTillSession(retur);
       return;
@@ -1567,93 +1567,93 @@ function bekraftaRaderaSession() {
 }
 
 // =============================================================================
-// RUM-FLÖDE (feature 004a)
+// GRUPP-FLÖDE (feature 004a)
 // =============================================================================
 // Tillstånd som lever mellan skärmarna i join/create-flödena.
-let _rumSkapat = null;       // { roomId, roomNamn, personId }
-let _rumForJoin = null;      // { roomId, roomNamn } – väntar på namn-bekräftelse
-let _skapaRumRetur = null;   // sessions-id att gå tillbaka till om skapa-rum avbryts
+let _gruppSkapat = null;       // { gruppId, gruppNamn, personId }
+let _gruppForJoin = null;      // { gruppId, gruppNamn } – väntar på namn-bekräftelse
+let _skapaGruppRetur = null;   // sessions-id att gå tillbaka till om skapa-grupp avbryts
 
-function visaSkapaRum() {
+function visaSkapaGrupp() {
   doljAllaSkärmar();
-  document.getElementById("intro-skapa-rum").style.display = "flex";
-  const projInp = document.getElementById("skapa-rum-namn");
-  const namnInp = document.getElementById("skapa-rum-mitt-namn");
-  const epostInp = document.getElementById("skapa-rum-epost");
+  document.getElementById("intro-skapa-grupp").style.display = "flex";
+  const projInp = document.getElementById("skapa-grupp-namn");
+  const namnInp = document.getElementById("skapa-grupp-mitt-namn");
+  const epostInp = document.getElementById("skapa-grupp-epost");
   projInp.value = "";
   namnInp.value = mittSparadeNamn() || "";
   epostInp.value = localStorage.getItem("kvitts_identitet_epost") || "";
-  uppdateraSkapaRumKnapp();
+  uppdateraSkapaGruppKnapp();
   projInp.focus();
 }
 
-function uppdateraSkapaRumKnapp() {
-  const proj = document.getElementById("skapa-rum-namn").value.trim();
-  const namn = document.getElementById("skapa-rum-mitt-namn").value.trim();
-  const epost = document.getElementById("skapa-rum-epost").value.trim();
-  document.getElementById("btn-skapa-rum").disabled = !(proj && namn && epost);
+function uppdateraSkapaGruppKnapp() {
+  const proj = document.getElementById("skapa-grupp-namn").value.trim();
+  const namn = document.getElementById("skapa-grupp-mitt-namn").value.trim();
+  const epost = document.getElementById("skapa-grupp-epost").value.trim();
+  document.getElementById("btn-skapa-grupp").disabled = !(proj && namn && epost);
 }
 
-async function skapaRumOchGaIn() {
-  const namn = document.getElementById("skapa-rum-namn").value.trim();
-  const minNamnInput = document.getElementById("skapa-rum-mitt-namn").value.trim();
-  const epostRaw = document.getElementById("skapa-rum-epost").value.trim();
+async function skapaGruppOchGaIn() {
+  const namn = document.getElementById("skapa-grupp-namn").value.trim();
+  const minNamnInput = document.getElementById("skapa-grupp-mitt-namn").value.trim();
+  const epostRaw = document.getElementById("skapa-grupp-epost").value.trim();
   if (!namn || !minNamnInput || !epostRaw) return;
   person1 = minNamnInput;
   localStorage.setItem("kvitts_person1", minNamnInput);
   localStorage.setItem("kvitts_identitet_epost", epostRaw);
   _joinEpost = epostRaw;
   const minNamn = minNamnInput;
-  const btn = document.getElementById("btn-skapa-rum");
+  const btn = document.getElementById("btn-skapa-grupp");
   btn.disabled = true;
   btn.textContent = "Skapar…";
   try {
-    // Skapa rummet endast om det inte redan gjorts (retry-skydd så ett
-    // misslyckat identitetsanrop inte skapar dubbletträum).
-    if (!_rumSkapat) {
-      const res = await KvittsSupabase.skapaRum(namn, minNamn);
-      _rumSkapat = { roomId: res.roomId, roomNamn: res.roomNamn, personId: res.personId };
+    // Skapa gruppen endast om det inte redan gjorts (retry-skydd så ett
+    // misslyckat identitetsanrop inte skapar dubblettgrupper).
+    if (!_gruppSkapat) {
+      const res = await KvittsSupabase.skapaGrupp(namn, minNamn);
+      _gruppSkapat = { gruppId: res.gruppId, gruppNamn: res.gruppNamn, personId: res.personId };
     }
-    // Identitet + personlig token (018b) görs direkt så både rumslänk och
+    // Identitet + personlig token (018b) görs direkt så både gruppslänk och
     // personlig länk kan visas på samma bekräftelseskärm.
     const identitetHash = await hashIdentitet(_joinEpost);
     const memberToken = generateMemberToken();
     _joinMemberToken = memberToken;
-    await KvittsSupabase.uppdateraMemberIdentitet(_rumSkapat.personId, identitetHash, memberToken);
-    visaRumSkapat();
+    await KvittsSupabase.uppdateraMemberIdentitet(_gruppSkapat.personId, identitetHash, memberToken);
+    visaGruppSkapat();
   } catch (e) {
-    alert("Kunde inte skapa rummet: " + (e.message || e));
+    alert("Kunde inte skapa gruppen: " + (e.message || e));
     btn.disabled = false;
-    btn.textContent = "Skapa rum →";
+    btn.textContent = "Skapa grupp →";
   }
 }
 
-function visaRumSkapat() {
+function visaGruppSkapat() {
   doljAllaSkärmar();
-  document.getElementById("intro-rum-skapat").style.display = "flex";
-  const url = rumUrl(_rumSkapat.roomId);
-  document.getElementById("rum-skapat-text").textContent =
-    "Rummet \"" + _rumSkapat.roomNamn + "\" är skapat.";
-  document.getElementById("rum-skapat-url").value = url;
-  document.getElementById("rum-skapat-epost-visning").textContent = _joinEpost;
-  document.getElementById("rum-skapat-personlig-lank").textContent =
+  document.getElementById("intro-grupp-skapat").style.display = "flex";
+  const url = gruppUrl(_gruppSkapat.gruppId);
+  document.getElementById("grupp-skapat-text").textContent =
+    "Gruppen \"" + _gruppSkapat.gruppNamn + "\" är skapad.";
+  document.getElementById("grupp-skapat-url").value = url;
+  document.getElementById("grupp-skapat-epost-visning").textContent = _joinEpost;
+  document.getElementById("grupp-skapat-personlig-lank").textContent =
     window.location.origin + "/?me=" + _joinMemberToken;
-  const delaBtn = document.getElementById("btn-dela-rum");
+  const delaBtn = document.getElementById("btn-dela-grupp");
   delaBtn.style.display = navigator.share ? "block" : "none";
 }
 
-function rumUrl(roomId) {
-  return window.location.origin + "/r/" + roomId;
+function gruppUrl(gruppId) {
+  return window.location.origin + "/g/" + gruppId;
 }
 
-async function kopieraRumLank() {
-  const url = document.getElementById("rum-skapat-url").value;
+async function kopieraGruppLank() {
+  const url = document.getElementById("grupp-skapat-url").value;
   try {
     await navigator.clipboard.writeText(url);
     alert("Länken kopierad!");
   } catch (_) {
     // Fallback: selektera fältet så användaren kan kopiera manuellt
-    const inp = document.getElementById("rum-skapat-url");
+    const inp = document.getElementById("grupp-skapat-url");
     inp.select();
   }
 }
@@ -1668,22 +1668,22 @@ async function kopieraDeltagarLank() {
   }
 }
 
-async function delaRumLank() {
+async function delaGruppLank() {
   if (!navigator.share) return;
-  const url = document.getElementById("rum-skapat-url").value;
+  const url = document.getElementById("grupp-skapat-url").value;
   try {
-    await navigator.share({ title: "Kvitts: " + _rumSkapat.roomNamn, url });
+    await navigator.share({ title: "Kvitts: " + _gruppSkapat.gruppNamn, url });
   } catch (_) { /* användaren avbröt */ }
 }
 
-async function gaInIRumEfterSkapa() {
-  if (!_rumSkapat) return;
-  // Identitet/token är redan sparat i skapaRumOchGaIn — gå bara in i appen.
-  skapaRumSession(_rumSkapat.roomId, _rumSkapat.roomNamn, _rumSkapat.personId);
+async function gaInIGruppEfterSkapa() {
+  if (!_gruppSkapat) return;
+  // Identitet/token är redan sparat i skapaGruppOchGaIn — gå bara in i appen.
+  skapaGruppSession(_gruppSkapat.gruppId, _gruppSkapat.gruppNamn, _gruppSkapat.personId);
   if (window.history && window.history.replaceState) {
     window.history.replaceState({}, "", "/");
   }
-  _rumSkapat = null;
+  _gruppSkapat = null;
   _joinMemberToken = "";
 }
 
@@ -1692,16 +1692,16 @@ function andraSkaparEpost() {
   if (!ny || !ny.trim()) return;
   _joinEpost = ny.trim();
   localStorage.setItem("kvitts_identitet_epost", _joinEpost);
-  document.getElementById("rum-skapat-epost-visning").textContent = _joinEpost;
-  if (_rumSkapat) {
+  document.getElementById("grupp-skapat-epost-visning").textContent = _joinEpost;
+  if (_gruppSkapat) {
     hashIdentitet(_joinEpost).then(h =>
-      KvittsSupabase.uppdateraMemberIdentitet(_rumSkapat.personId, h, undefined).catch(console.error)
+      KvittsSupabase.uppdateraMemberIdentitet(_gruppSkapat.personId, h, undefined).catch(console.error)
     );
   }
 }
 
-async function kopieraRumPersonligLank() {
-  const lank = document.getElementById("rum-skapat-personlig-lank").textContent;
+async function kopieraGruppPersonligLank() {
+  const lank = document.getElementById("grupp-skapat-personlig-lank").textContent;
   try {
     await navigator.clipboard.writeText(lank);
     alert("Länken kopierad!");
@@ -1710,18 +1710,18 @@ async function kopieraRumPersonligLank() {
   }
 }
 
-function skapaRumSession(roomId, roomNamn, personId) {
+function skapaGruppSession(gruppId, gruppNamn, personId) {
   const minNamn = mittSparadeNamn() || "Jag";
   // Personer/utgifter fylls i av polling i 004b. För 004a räcker det med
   // mig själv i listan så headern och dropdownen har något att visa.
   const sessionPersoner = [{ id: personId, namn: minNamn }];
   sparaAktivSessionsData(); // säkerställ nuvarande session sparad
-  const session = skapaSession(roomNamn, sessionPersoner, personId, [], {
-    kind: "rum",
-    roomId,
+  const session = skapaSession(gruppNamn, sessionPersoner, personId, [], {
+    kind: "grupp",
+    gruppId,
     personId,
   });
-  localStorage.setItem(roomMemberKey(roomId), personId);
+  localStorage.setItem(gruppMemberKey(gruppId), personId);
   vaxlaTillSession(session.id);
 }
 
@@ -1738,36 +1738,36 @@ function mittSparadeNamn() {
   return null;
 }
 
-// 018a — lager 1: localStorage per rum.
+// 018a — lager 1: localStorage per grupp.
 // 018b — lager 2: identitet_hash (e-post). Lager 3: member_token i URL.
-async function forsokTystAteranslutning(roomId) {
+async function forsokTystAteranslutning(gruppId) {
   // Lager 1: localStorage
-  const sparatPersonId = localStorage.getItem(roomMemberKey(roomId));
+  const sparatPersonId = localStorage.getItem(gruppMemberKey(gruppId));
 
   try {
-    const rum = await KvittsSupabase.haRum(roomId);
-    if (!rum) {
-      localStorage.removeItem(roomMemberKey(roomId));
-      startaJoinFlode(roomId);
+    const grupp = await KvittsSupabase.haGrupp(gruppId);
+    if (!grupp) {
+      localStorage.removeItem(gruppMemberKey(gruppId));
+      startaJoinFlode(gruppId);
       return;
     }
 
     if (sparatPersonId) {
-      const deltagare = await KvittsSupabase.hamtaDeltagare(roomId);
+      const deltagare = await KvittsSupabase.hamtaDeltagare(gruppId);
       const mig = deltagare.find(d => d.id === sparatPersonId);
       if (mig) {
         if (window.history && window.history.replaceState) window.history.replaceState({}, "", "/");
-        skapaRumSession(roomId, rum.namn, sparatPersonId);
+        skapaGruppSession(gruppId, grupp.namn, sparatPersonId);
         return;
       }
-      localStorage.removeItem(roomMemberKey(roomId));
+      localStorage.removeItem(gruppMemberKey(gruppId));
     }
 
     // Lager 2: erbjud återanslutning via hash
-    _joinRumForAterstall = { roomId, roomNamn: rum.namn };
+    _joinGruppForAterstall = { gruppId, gruppNamn: grupp.namn };
     visaAterstallningsFragan();
   } catch (e) {
-    startaJoinFlode(roomId);
+    startaJoinFlode(gruppId);
   }
 }
 
@@ -1780,15 +1780,15 @@ async function forsokTokenAteranslutning(memberToken) {
       if (window.history && window.history.replaceState) window.history.replaceState({}, "", "/");
       return false;
     }
-    const rum = await KvittsSupabase.haRum(medlem.room_id);
-    if (!rum) {
+    const grupp = await KvittsSupabase.haGrupp(medlem.room_id);
+    if (!grupp) {
       if (window.history && window.history.replaceState) window.history.replaceState({}, "", "/");
       return false;
     }
     // Spara i localStorage (018a-nyckeln) så nästa besök funkar via lager 1
-    localStorage.setItem(roomMemberKey(rum.id), medlem.id);
+    localStorage.setItem(gruppMemberKey(grupp.id), medlem.id);
     if (window.history && window.history.replaceState) window.history.replaceState({}, "", "/");
-    skapaRumSession(rum.id, rum.namn, medlem.id);
+    skapaGruppSession(grupp.id, grupp.namn, medlem.id);
     return true;
   } catch (e) {
     if (window.history && window.history.replaceState) window.history.replaceState({}, "", "/");
@@ -1798,8 +1798,8 @@ async function forsokTokenAteranslutning(memberToken) {
 
 function visaAterstallningsFragan() {
   doljAllaSkärmar();
-  const r = _joinRumForAterstall;
-  document.getElementById("atersta-ll-rubrik").textContent = "Välkommen till \"" + (r ? r.roomNamn : "gruppen") + "\"";
+  const r = _joinGruppForAterstall;
+  document.getElementById("atersta-ll-rubrik").textContent = "Välkommen till \"" + (r ? r.gruppNamn : "gruppen") + "\"";
   document.getElementById("atersta-ll-text").textContent = "Är du ny här, eller har du varit med förut?";
   document.getElementById("intro-atersta-ll").style.display = "flex";
   kanskeVisaInstallToast();
@@ -1815,7 +1815,7 @@ function visaIdentifierareFormular() {
 }
 
 async function sokOchAteranslut() {
-  if (!_joinRumForAterstall) return;
+  if (!_joinGruppForAterstall) return;
   const epostRaw = document.getElementById("atersta-ll-epost").value.trim();
   if (!epostRaw) return;
   const felEl = document.getElementById("atersta-ll-fel");
@@ -1825,9 +1825,9 @@ async function sokOchAteranslut() {
   btn.textContent = "Söker…";
   try {
     const hash = await hashIdentitet(epostRaw);
-    const matchningar = await KvittsSupabase.sokMedIdentitetHash(_joinRumForAterstall.roomId, hash);
+    const matchningar = await KvittsSupabase.sokMedIdentitetHash(_joinGruppForAterstall.gruppId, hash);
     if (matchningar.length === 0) {
-      felEl.textContent = "Ingen deltagare med den e-postadressen i rummet — kontrollera stavningen eller välj \"Jag är ny\".";
+      felEl.textContent = "Ingen deltagare med den e-postadressen i gruppen — kontrollera stavningen eller välj \"Jag är ny\".";
       felEl.style.display = "block";
       btn.disabled = false;
       btn.textContent = "Återanslut →";
@@ -1835,10 +1835,10 @@ async function sokOchAteranslut() {
     }
     // Ta första träffen (race-case med flera lämnas för v2)
     const mig = matchningar[0];
-    localStorage.setItem(roomMemberKey(_joinRumForAterstall.roomId), mig.id);
+    localStorage.setItem(gruppMemberKey(_joinGruppForAterstall.gruppId), mig.id);
     if (window.history && window.history.replaceState) window.history.replaceState({}, "", "/");
-    skapaRumSession(_joinRumForAterstall.roomId, _joinRumForAterstall.roomNamn, mig.id);
-    _joinRumForAterstall = null;
+    skapaGruppSession(_joinGruppForAterstall.gruppId, _joinGruppForAterstall.gruppNamn, mig.id);
+    _joinGruppForAterstall = null;
   } catch (e) {
     felEl.textContent = "Kunde inte söka: " + (e.message || e);
     felEl.style.display = "block";
@@ -1848,26 +1848,26 @@ async function sokOchAteranslut() {
 }
 
 function fortsattSomNy() {
-  if (!_joinRumForAterstall) return;
-  const r = _joinRumForAterstall;
-  _joinRumForAterstall = null;
-  _joinFranAterstall = { roomId: r.roomId, roomNamn: r.roomNamn };
-  _rumForJoin = { roomId: r.roomId, roomNamn: r.roomNamn };
+  if (!_joinGruppForAterstall) return;
+  const r = _joinGruppForAterstall;
+  _joinGruppForAterstall = null;
+  _joinFranAterstall = { gruppId: r.gruppId, gruppNamn: r.gruppNamn };
+  _gruppForJoin = { gruppId: r.gruppId, gruppNamn: r.gruppNamn };
   visaBekraftaJoin();
 }
 
-async function startaJoinFlode(roomId) {
-  // Kommer hit direkt vid laddning av /r/<id>. Slå upp rummet och visa
+async function startaJoinFlode(gruppId) {
+  // Kommer hit direkt vid laddning av /g/<id>. Slå upp gruppen och visa
   // bekräftelseskärmen om det finns.
   _joinFranAterstall = null;
   try {
-    const rum = await KvittsSupabase.haRum(roomId);
-    if (!rum) {
-      localStorage.removeItem(roomMemberKey(roomId));
-      visaRumBorttaget();
+    const grupp = await KvittsSupabase.haGrupp(gruppId);
+    if (!grupp) {
+      localStorage.removeItem(gruppMemberKey(gruppId));
+      visaGruppBorttaget();
       return;
     }
-    _rumForJoin = { roomId: rum.id, roomNamn: rum.namn };
+    _gruppForJoin = { gruppId: grupp.id, gruppNamn: grupp.namn };
     visaBekraftaJoin();
   } catch (e) {
     alert("Kunde inte kontakta servern: " + (e.message || e));
@@ -1886,12 +1886,12 @@ function visaBekraftaJoin() {
   _joinEpost = sparadEpost;
   if (sparatNamn) {
     document.getElementById("bekrafta-join-text").textContent =
-      "Du heter " + sparatNamn + ". Gå med i \"" + _rumForJoin.roomNamn + "\"?";
+      "Du heter " + sparatNamn + ". Gå med i \"" + _gruppForJoin.gruppNamn + "\"?";
     namnInp.style.display = "none";
     epostInp.focus();
   } else {
     document.getElementById("bekrafta-join-text").textContent =
-      "Vad heter du? Du går med i \"" + _rumForJoin.roomNamn + "\".";
+      "Vad heter du? Du går med i \"" + _gruppForJoin.gruppNamn + "\".";
     namnInp.style.display = "";
     namnInp.value = "";
     namnInp.focus();
@@ -1910,7 +1910,7 @@ function uppdateraBekraftaJoinKnapp() {
 }
 
 async function bekraftaJoin() {
-  if (!_rumForJoin) return;
+  if (!_gruppForJoin) return;
   let minNamn = mittSparadeNamn();
   if (!minNamn) {
     minNamn = document.getElementById("bekrafta-join-namn").value.trim();
@@ -1927,24 +1927,24 @@ async function bekraftaJoin() {
   btn.textContent = "Går med…";
   try {
     const befintligSession = sessions.find(s => {
-      if (s.kind !== "rum") return false;
+      if (s.kind !== "grupp") return false;
       const d = laddaSessionsData(s.id);
-      return d && d.roomId === _rumForJoin.roomId;
+      return d && d.gruppId === _gruppForJoin.gruppId;
     });
     if (befintligSession) {
       vaxlaTillSession(befintligSession.id);
-      _rumForJoin = null;
+      _gruppForJoin = null;
       if (window.history && window.history.replaceState) window.history.replaceState({}, "", "/");
       return;
     }
 
-    const res = await KvittsSupabase.gaMedIRum(_rumForJoin.roomId, minNamn, null);
+    const res = await KvittsSupabase.gaMedIGrupp(_gruppForJoin.gruppId, minNamn, null);
     const identitetHash = await hashIdentitet(_joinEpost);
     const memberToken = generateMemberToken();
     _joinMemberToken = memberToken;
     await KvittsSupabase.uppdateraMemberIdentitet(res.personId, identitetHash, memberToken);
 
-    skapaRumSession(res.roomId, _rumForJoin.roomNamn, res.personId);
+    skapaGruppSession(res.gruppId, _gruppForJoin.gruppNamn, res.personId);
 
     // Lager 3: uppdatera URL med ?me=token
     if (window.history && window.history.replaceState) {
@@ -1952,8 +1952,8 @@ async function bekraftaJoin() {
     }
 
     // Visa bekräftelseskärm
-    visaMinIdentitetSkarm(minNamn, _rumForJoin.roomNamn);
-    _rumForJoin = null;
+    visaMinIdentitetSkarm(minNamn, _gruppForJoin.gruppNamn);
+    _gruppForJoin = null;
   } catch (e) {
     alert("Kunde inte gå med: " + (e.message || e));
     btn.disabled = false;
@@ -1961,7 +1961,7 @@ async function bekraftaJoin() {
   }
 }
 
-function visaMinIdentitetSkarm(namn, rumNamn) {
+function visaMinIdentitetSkarm(namn, gruppNamn) {
   doljAllaSkärmar();
   document.getElementById("intro-min-identitet").style.display = "flex";
   document.getElementById("min-identitet-rubrik").textContent = "Du är inne som " + namn + " ✓";
@@ -1986,10 +1986,10 @@ function andraIdentifierare() {
   _joinEpost = ny.trim();
   document.getElementById("min-identitet-epost").textContent = _joinEpost;
   // Uppdatera hash asynkront
-  const rumData = aktivRumData();
-  if (rumData) {
+  const gruppData = aktivGruppData();
+  if (gruppData) {
     hashIdentitet(_joinEpost).then(h =>
-      KvittsSupabase.uppdateraMemberIdentitet(rumData.personId, h, undefined).catch(console.error)
+      KvittsSupabase.uppdateraMemberIdentitet(gruppData.personId, h, undefined).catch(console.error)
     );
   }
 }
@@ -2003,11 +2003,11 @@ function gaInEfterIdentitet() {
 }
 
 function avbrytJoin() {
-  _rumForJoin = null;
+  _gruppForJoin = null;
   // Kom vi hit via en inbjudningslänk (återställningsfrågan)? Gå tillbaka dit
   // istället för till startsidan, så inbjudan inte tappas.
   if (_joinFranAterstall) {
-    _joinRumForAterstall = _joinFranAterstall;
+    _joinGruppForAterstall = _joinFranAterstall;
     _joinFranAterstall = null;
     visaAterstallningsFragan();
     return;
@@ -2022,7 +2022,7 @@ function avbrytJoin() {
   }
 }
 
-function gaFranRumBorttaget() {
+function gaFranGruppBorttaget() {
   if (window.history && window.history.replaceState) {
     window.history.replaceState({}, "", "/");
   }
@@ -2037,9 +2037,9 @@ function gaFranRumBorttaget() {
 // Pausa polling när fliken inte är synlig, återuppta vid synlighet igen.
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) return;
-  // Återupptag: hämta direkt vid synlighet om rum-session är aktiv.
-  const rum = aktivRumData();
-  if (rum) refreshUtgifter();
+  // Återupptag: hämta direkt vid synlighet om grupp-session är aktiv.
+  const grupp = aktivGruppData();
+  if (grupp) refreshUtgifter();
 });
 
 window.addEventListener("beforeunload", stoppPolling);
@@ -2070,7 +2070,7 @@ function uppdateraInstallUI() {
   if (btn) btn.style.display = installMojlig() ? "block" : "none";
 }
 
-// Skärmar där toasten får dyka upp: beslutssidan (rum vs lokal),
+// Skärmar där toasten får dyka upp: beslutssidan (grupp vs lokal),
 // inbjudnings-landningen och själva appen. Inte mitt i inmatningsflöden.
 function installToastTillaten() {
   if (document.getElementById("app").style.display === "block") return true;

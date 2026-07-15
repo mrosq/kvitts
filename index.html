@@ -484,7 +484,7 @@
       <strong>Jag håller reda på allas utgifter</strong>
       <span>Du för in allt på din enhet. Inget konto behövs.</span>
     </button>
-    <button class="lagesval-kort" onclick="visaSkapaRum()">
+    <button class="lagesval-kort" onclick="visaSkapaGrupp()">
       <strong>Vi för in utgifter var för sig</strong>
       <span>Alla i gruppen lägger in sina egna, från sin telefon.</span>
     </button>
@@ -501,49 +501,49 @@
   <button class="btn-text" onclick="document.getElementById('ladda-input').click()">eller ladda en sparad fil</button>
 </div>
 
-<div id="intro-skapa-rum" class="intro-skarm" style="display:none">
-  <h1>Skapa rum</h1>
+<div id="intro-skapa-grupp" class="intro-skarm" style="display:none">
+  <h1>Skapa grupp</h1>
   <p>Namnge projektet och dig själv.</p>
-  <input class="setup-input" id="skapa-rum-namn" type="text" maxlength="40" placeholder="Projektnamn (t.ex. Spanien 2026)..."
-    oninput="uppdateraSkapaRumKnapp()"
-    onkeydown="if(event.key==='Enter') document.getElementById('skapa-rum-mitt-namn').focus()"/>
-  <input class="setup-input" id="skapa-rum-mitt-namn" type="text" maxlength="20" placeholder="Ditt namn..."
-    oninput="uppdateraSkapaRumKnapp()"
-    onkeydown="if(event.key==='Enter') document.getElementById('skapa-rum-epost').focus()"/>
-  <input class="setup-input" id="skapa-rum-epost" type="email" maxlength="100"
+  <input class="setup-input" id="skapa-grupp-namn" type="text" maxlength="40" placeholder="Projektnamn (t.ex. Spanien 2026)..."
+    oninput="uppdateraSkapaGruppKnapp()"
+    onkeydown="if(event.key==='Enter') document.getElementById('skapa-grupp-mitt-namn').focus()"/>
+  <input class="setup-input" id="skapa-grupp-mitt-namn" type="text" maxlength="20" placeholder="Ditt namn..."
+    oninput="uppdateraSkapaGruppKnapp()"
+    onkeydown="if(event.key==='Enter') document.getElementById('skapa-grupp-epost').focus()"/>
+  <input class="setup-input" id="skapa-grupp-epost" type="email" maxlength="100"
     placeholder="Din e-postadress (för att kunna återansluta)"
-    oninput="uppdateraSkapaRumKnapp()"
-    onkeydown="if(event.key==='Enter' && !document.getElementById('btn-skapa-rum').disabled) skapaRumOchGaIn()"/>
+    oninput="uppdateraSkapaGruppKnapp()"
+    onkeydown="if(event.key==='Enter' && !document.getElementById('btn-skapa-grupp').disabled) skapaGruppOchGaIn()"/>
   <div style="font-size:0.78rem; color:var(--muted); text-align:left; width:100%;">
     E-posten används bara för att identifiera dig om du byter enhet eller rensar cookies. Delas aldrig.
   </div>
-  <button class="btn-primary" id="btn-skapa-rum" onclick="skapaRumOchGaIn()" disabled>Skapa rum →</button>
-  <button class="btn-text" onclick="avbrytSkapaRum()">← Tillbaka</button>
+  <button class="btn-primary" id="btn-skapa-grupp" onclick="skapaGruppOchGaIn()" disabled>Skapa grupp →</button>
+  <button class="btn-text" onclick="avbrytSkapaGrupp()">← Tillbaka</button>
 </div>
 
-<div id="intro-rum-skapat" class="intro-skarm" style="display:none">
+<div id="intro-grupp-skapat" class="intro-skarm" style="display:none">
   <h1>Klart!</h1>
-  <p id="rum-skapat-text"></p>
+  <p id="grupp-skapat-text"></p>
 
   <div style="width:100%; background:var(--card); border-radius:var(--radius); padding:1.2rem; border:1px solid var(--border); text-align:left;">
     <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:0.4rem;">Bjud in andra</div>
-    <input class="setup-input" id="rum-skapat-url" type="text" readonly style="font-size:0.85rem; margin-bottom:0.6rem;"/>
+    <input class="setup-input" id="grupp-skapat-url" type="text" readonly style="font-size:0.85rem; margin-bottom:0.6rem;"/>
     <div style="display:flex; gap:0.5rem; flex-direction:column;">
-      <button class="btn-primary" onclick="kopieraRumLank()">Kopiera länk</button>
-      <button class="btn-primary" id="btn-dela-rum" onclick="delaRumLank()" style="display:none">Dela…</button>
+      <button class="btn-primary" onclick="kopieraGruppLank()">Kopiera länk</button>
+      <button class="btn-primary" id="btn-dela-grupp" onclick="delaGruppLank()" style="display:none">Dela…</button>
     </div>
   </div>
 
   <div style="width:100%; background:var(--card); border-radius:var(--radius); padding:1.2rem; border:1px solid var(--border); text-align:left;">
     <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:0.4rem;">Återanslutningsadress</div>
     <div style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem; margin-bottom:0.8rem;">
-      <span id="rum-skapat-epost-visning" style="font-size:0.95rem; color:var(--ink); flex:1; word-break:break-all;"></span>
+      <span id="grupp-skapat-epost-visning" style="font-size:0.95rem; color:var(--ink); flex:1; word-break:break-all;"></span>
       <button class="btn-lank" onclick="andraSkaparEpost()">Ändra</button>
     </div>
     <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:0.4rem;">Din personliga länk</div>
     <div style="display:flex; align-items:center; gap:0.4rem;">
-      <span id="rum-skapat-personlig-lank" style="font-size:0.75rem; color:var(--muted); word-break:break-all; flex:1;"></span>
-      <button onclick="kopieraRumPersonligLank()" aria-label="Kopiera" style="background:none; border:none; cursor:pointer; color:var(--muted); padding:0.2rem; flex-shrink:0;">
+      <span id="grupp-skapat-personlig-lank" style="font-size:0.75rem; color:var(--muted); word-break:break-all; flex:1;"></span>
+      <button onclick="kopieraGruppPersonligLank()" aria-label="Kopiera" style="background:none; border:none; cursor:pointer; color:var(--muted); padding:0.2rem; flex-shrink:0;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
         </svg>
@@ -554,13 +554,13 @@
     Den personliga länken låter dig komma tillbaka även om du byter enhet eller rensar cookies. Spara den.
   </p>
 
-  <button class="btn-primary" id="btn-ga-in-rum" onclick="gaInIRumEfterSkapa()">Börja lägg till utgifter →</button>
+  <button class="btn-primary" id="btn-ga-in-grupp" onclick="gaInIGruppEfterSkapa()">Börja lägg till utgifter →</button>
 </div>
 
-<div id="rum-borttaget-skarm" class="intro-skarm" style="display:none">
-  <h1>Rummet finns inte längre</h1>
-  <p>Det delade rummet har tagits bort eller länken är felaktig.</p>
-  <button class="btn-primary" onclick="gaFranRumBorttaget()">Tillbaka till start →</button>
+<div id="grupp-borttaget-skarm" class="intro-skarm" style="display:none">
+  <h1>Gruppen finns inte längre</h1>
+  <p>Den delade gruppen har tagits bort eller länken är felaktig.</p>
+  <button class="btn-primary" onclick="gaFranGruppBorttaget()">Tillbaka till start →</button>
 </div>
 
 <div id="intro-bekrafta-join" class="intro-skarm" style="display:none">
@@ -600,7 +600,7 @@
 <!-- 018b lager 2: Identifierare-formulär -->
 <div id="intro-identifierare-formular" class="intro-skarm" style="display:none">
   <h1>Återanslut</h1>
-  <p>Skriv in e-postadressen du angav när du gick med i rummet.</p>
+  <p>Skriv in e-postadressen du angav när du gick med i gruppen.</p>
   <input class="setup-input" id="atersta-ll-epost" type="email" maxlength="100"
     placeholder="Din e-postadress..."
     oninput="document.getElementById('btn-atersta-ll').disabled = !this.value.trim()"
@@ -689,7 +689,7 @@
     <div class="sessions-sektion">
       <div class="sessions-rubrik">Pågående</div>
       <div class="sessions-lista" id="sessions-pagaende"></div>
-      <button class="sessions-ny-rad" onclick="skapaRumFranMeny()">＋ Skapa nytt rum</button>
+      <button class="sessions-ny-rad" onclick="skapaGruppFranMeny()">＋ Skapa ny grupp</button>
       <button class="sessions-ny-rad" onclick="visaNySessionForm()">＋ Ny lokal session</button>
     </div>
 
@@ -837,7 +837,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- DELTAGAR-MODAL (rum-läge) -->
+<!-- DELTAGAR-MODAL (grupp-läge) -->
 <div class="modal-overlay" id="deltagare-modal" onclick="stangDeltagareModalVidKlick(event)">
   <div class="modal">
     <h2 id="deltagare-modal-rubrik">Deltagare</h2>

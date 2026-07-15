@@ -7,13 +7,13 @@ const {
   egnaInfoText,
   migreraUtgift,
   minimeradeOverforingar,
-  parseRumSokvag,
-  roomMemberKey,
+  parseGruppSokvag,
+  gruppMemberKey,
   normaliseraEpost,
   hashIdentitet,
   generateMemberToken,
   matchaPlanMotKvittenser,
-  rumFulltReglerat,
+  gruppFulltReglerat,
   debitorArkiverad,
   minRegleringKlar,
 } = require("./logic");
@@ -691,49 +691,49 @@ describe("integration: raknaDel → raknaUtSaldo", () => {
   });
 });
 
-describe("parseRumSokvag", () => {
-  it("plockar ut rum-ID från /r/<id>", () => {
-    assert.equal(parseRumSokvag("/r/ABC123"), "ABC123");
+describe("parseGruppSokvag", () => {
+  it("plockar ut grupp-ID från /g/<id>", () => {
+    assert.equal(parseGruppSokvag("/g/ABC123"), "ABC123");
   });
 
   it("normaliserar till versaler", () => {
-    assert.equal(parseRumSokvag("/r/abc123"), "ABC123");
+    assert.equal(parseGruppSokvag("/g/abc123"), "ABC123");
   });
 
   it("accepterar trailing slash", () => {
-    assert.equal(parseRumSokvag("/r/K7M2X9/"), "K7M2X9");
+    assert.equal(parseGruppSokvag("/g/K7M2X9/"), "K7M2X9");
   });
 
-  it("returnerar null för pathnames utan rum-prefix", () => {
-    assert.equal(parseRumSokvag("/"), null);
-    assert.equal(parseRumSokvag("/r/"), null);
-    assert.equal(parseRumSokvag("/other/ABC123"), null);
+  it("returnerar null för pathnames utan grupp-prefix", () => {
+    assert.equal(parseGruppSokvag("/"), null);
+    assert.equal(parseGruppSokvag("/g/"), null);
+    assert.equal(parseGruppSokvag("/other/ABC123"), null);
   });
 
   it("avvisar för korta eller för långa ID:n", () => {
-    assert.equal(parseRumSokvag("/r/AB"), null);
-    assert.equal(parseRumSokvag("/r/ABCDEFGHIJK"), null);
+    assert.equal(parseGruppSokvag("/g/AB"), null);
+    assert.equal(parseGruppSokvag("/g/ABCDEFGHIJK"), null);
   });
 
   it("avvisar specialtecken i ID:t", () => {
-    assert.equal(parseRumSokvag("/r/ABC-12"), null);
-    assert.equal(parseRumSokvag("/r/ABC 12"), null);
+    assert.equal(parseGruppSokvag("/g/ABC-12"), null);
+    assert.equal(parseGruppSokvag("/g/ABC 12"), null);
   });
 
   it("hanterar icke-strängar utan att krascha", () => {
-    assert.equal(parseRumSokvag(null), null);
-    assert.equal(parseRumSokvag(undefined), null);
-    assert.equal(parseRumSokvag(123), null);
+    assert.equal(parseGruppSokvag(null), null);
+    assert.equal(parseGruppSokvag(undefined), null);
+    assert.equal(parseGruppSokvag(123), null);
   });
 });
 
-describe("roomMemberKey", () => {
-  it("bygger nyckel med rum-id:t i mitten", () => {
-    assert.equal(roomMemberKey("ABC123"), "kvitts_room_ABC123_member_id");
+describe("gruppMemberKey", () => {
+  it("bygger nyckel med grupp-id:t i mitten", () => {
+    assert.equal(gruppMemberKey("ABC123"), "kvitts_grupp_ABC123_member_id");
   });
 
-  it("är unik per rum", () => {
-    assert.notEqual(roomMemberKey("ABC123"), roomMemberKey("XYZ789"));
+  it("är unik per grupp", () => {
+    assert.notEqual(gruppMemberKey("ABC123"), gruppMemberKey("XYZ789"));
   });
 });
 
@@ -868,14 +868,14 @@ describe("matchaPlanMotKvittenser", () => {
   });
 });
 
-describe("rumFulltReglerat", () => {
+describe("gruppFulltReglerat", () => {
   const PLAN = [
     { fran: "p2", till: "p1", belopp: 100 },
     { fran: "p3", till: "p1", belopp: 200 },
   ];
 
   it("tom plan (inga skulder) → fullt reglerad", () => {
-    assert.equal(rumFulltReglerat([], []), true);
+    assert.equal(gruppFulltReglerat([], []), true);
   });
 
   it("alla par kvitterade → true", () => {
@@ -883,12 +883,12 @@ describe("rumFulltReglerat", () => {
       { fran: "p2", till: "p1", belopp: 100 },
       { fran: "p3", till: "p1", belopp: 200 },
     ];
-    assert.equal(rumFulltReglerat(PLAN, kv), true);
+    assert.equal(gruppFulltReglerat(PLAN, kv), true);
   });
 
   it("ett par okvitterat → false", () => {
     const kv = [{ fran: "p2", till: "p1", belopp: 100 }];
-    assert.equal(rumFulltReglerat(PLAN, kv), false);
+    assert.equal(gruppFulltReglerat(PLAN, kv), false);
   });
 
   it("stale kvittens räknas inte som reglerad", () => {
@@ -896,7 +896,7 @@ describe("rumFulltReglerat", () => {
       { fran: "p2", till: "p1", belopp: 100 },
       { fran: "p3", till: "p1", belopp: 999 }, // fel belopp → stale
     ];
-    assert.equal(rumFulltReglerat(PLAN, kv), false);
+    assert.equal(gruppFulltReglerat(PLAN, kv), false);
   });
 });
 
@@ -1014,7 +1014,7 @@ describe("minRegleringKlar", () => {
 
 // ===========================================================================
 // Integration 017: minimeradeOverforingar → reglerings-helpers
-// Speglar spec-scenarierna (omdirigerad skuld, flera kreditorer, fullt rum).
+// Speglar spec-scenarierna (omdirigerad skuld, flera kreditorer, fullt reglerad grupp).
 // ===========================================================================
 describe("integration 017: plan → reglering", () => {
   const P3 = [{ id: "p1" }, { id: "p2" }, { id: "p3" }];
@@ -1047,25 +1047,25 @@ describe("integration 017: plan → reglering", () => {
     // Bara p1 har kvitterat → p3 väntar fortfarande på p2.
     const delvis = [{ fran: "p3", till: "p1", belopp: tillP1.belopp }];
     assert.equal(debitorArkiverad(plan, delvis, "p3"), false, "väntar på p2");
-    assert.equal(rumFulltReglerat(plan, delvis), false);
+    assert.equal(gruppFulltReglerat(plan, delvis), false);
 
-    // Båda kvitterat → p3 arkiveras och rummet är fullt reglerat.
+    // Båda kvitterat → p3 arkiveras och gruppen är fullt reglerad.
     const bada = [
       { fran: "p3", till: "p1", belopp: tillP1.belopp },
       { fran: "p3", till: "p2", belopp: tillP2.belopp },
     ];
     assert.equal(debitorArkiverad(plan, bada, "p3"), true);
-    assert.equal(rumFulltReglerat(plan, bada), true, "hela rummet reglerat");
+    assert.equal(gruppFulltReglerat(plan, bada), true, "hela gruppen reglerad");
   });
 
-  it("redan nollat rum är fullt reglerat utan kvittenser", () => {
+  it("redan nollad grupp är fullt reglerad utan kvittenser", () => {
     const utg = [
       { betalare_id: "p1", belopp: 100, fordelning: { p1: 50, p2: 50 } },
       { betalare_id: "p2", belopp: 100, fordelning: { p1: 50, p2: 50 } },
     ];
     const plan = minimeradeOverforingar(utg, [{ id: "p1" }, { id: "p2" }]);
     assert.deepEqual(plan, [], "inga överföringar");
-    assert.equal(rumFulltReglerat(plan, []), true);
+    assert.equal(gruppFulltReglerat(plan, []), true);
   });
 
   it("ny utgift efter kvittens gör kvittensen stale", () => {
@@ -1075,7 +1075,7 @@ describe("integration 017: plan → reglering", () => {
     ];
     const plan1 = minimeradeOverforingar(utg1, [{ id: "p1" }, { id: "p2" }]);
     const kv = [{ fran: "p2", till: "p1", belopp: plan1[0].belopp }];
-    assert.equal(rumFulltReglerat(plan1, kv), true, "kvitterad mot ursprunglig plan");
+    assert.equal(gruppFulltReglerat(plan1, kv), true, "kvitterad mot ursprunglig plan");
 
     // Sedan: p1 lägger ut mer → p2:s skuld ökar → planen ändras.
     const utg2 = [
@@ -1085,7 +1085,7 @@ describe("integration 017: plan → reglering", () => {
     const plan2 = minimeradeOverforingar(utg2, [{ id: "p1" }, { id: "p2" }]);
     const matchad = matchaPlanMotKvittenser(plan2, kv);
     assert.equal(matchad[0].stale, true, "gammal kvittens är nu stale");
-    assert.equal(rumFulltReglerat(plan2, kv), false, "inte längre reglerat");
+    assert.equal(gruppFulltReglerat(plan2, kv), false, "inte längre reglerat");
   });
 });
 

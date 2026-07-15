@@ -1,4 +1,4 @@
-// Tunna wrappers runt Supabase-klienten för rum-flödet (feature 004).
+// Tunna wrappers runt Supabase-klienten för grupp-flödet (feature 004).
 // Ingen DOM-access. Anropas från app.js.
 
 (function () {
@@ -17,72 +17,72 @@
     return _client;
   }
 
-  async function skapaRum(projektnamn, minNamn) {
+  async function skapaGrupp(projektnamn, minNamn) {
     const c = client();
-    const { data: rum, error: rumErr } = await c
+    const { data: grupp, error: gruppErr } = await c
       .from("rooms")
       .insert({ namn: projektnamn })
       .select()
       .single();
-    if (rumErr) throw rumErr;
+    if (gruppErr) throw gruppErr;
     const { data: medlem, error: medlemErr } = await c
       .from("members")
-      .insert({ room_id: rum.id, namn: minNamn })
+      .insert({ room_id: grupp.id, namn: minNamn })
       .select()
       .single();
     if (medlemErr) throw medlemErr;
-    return { roomId: rum.id, roomNamn: rum.namn, personId: medlem.id };
+    return { gruppId: grupp.id, gruppNamn: grupp.namn, personId: medlem.id };
   }
 
-  async function haRum(roomId) {
+  async function haGrupp(gruppId) {
     const c = client();
     const { data, error } = await c
       .from("rooms")
       .select()
-      .eq("id", roomId)
+      .eq("id", gruppId)
       .maybeSingle();
     if (error) throw error;
     return data; // null om inte finns
   }
 
-  async function gaMedIRum(roomId, minNamn, befintligtPersonId) {
+  async function gaMedIGrupp(gruppId, minNamn, befintligtPersonId) {
     const c = client();
-    // Idempotent: om vi redan har ett person_id för detta rum, återanvänd det.
+    // Idempotent: om vi redan har ett person_id för denna grupp, återanvänd det.
     if (befintligtPersonId) {
       const { data: befintlig } = await c
         .from("members")
         .select("id")
         .eq("id", befintligtPersonId)
-        .eq("room_id", roomId)
+        .eq("room_id", gruppId)
         .maybeSingle();
-      if (befintlig) return { roomId, personId: befintlig.id };
+      if (befintlig) return { gruppId, personId: befintlig.id };
     }
     const { data: medlem, error } = await c
       .from("members")
-      .insert({ room_id: roomId, namn: minNamn })
+      .insert({ room_id: gruppId, namn: minNamn })
       .select()
       .single();
     if (error) throw error;
-    return { roomId, personId: medlem.id };
+    return { gruppId, personId: medlem.id };
   }
 
-  async function hamtaDeltagare(roomId) {
+  async function hamtaDeltagare(gruppId) {
     const c = client();
     const { data, error } = await c
       .from("members")
       .select()
-      .eq("room_id", roomId)
+      .eq("room_id", gruppId)
       .order("joined_at", { ascending: true });
     if (error) throw error;
     return data || [];
   }
 
-  async function sokMedIdentitetHash(roomId, identitetHash) {
+  async function sokMedIdentitetHash(gruppId, identitetHash) {
     const c = client();
     const { data, error } = await c
       .from("members")
       .select()
-      .eq("room_id", roomId)
+      .eq("room_id", gruppId)
       .eq("identitet_hash", identitetHash);
     if (error) throw error;
     return data || [];
@@ -132,7 +132,7 @@
     };
   }
 
-  function klientTillDb(roomId, utgift, lagdTillAvId) {
+  function klientTillDb(gruppId, utgift, lagdTillAvId) {
     const fordelning = { ...(utgift.fordelning || {}) };
     if (utgift.splitTyp || utgift.inkluderade || utgift.egnaBelopp) {
       fordelning._meta = {
@@ -142,7 +142,7 @@
       };
     }
     return {
-      room_id: roomId,
+      room_id: gruppId,
       beskrivning: utgift.beskrivning,
       belopp: utgift.belopp,
       betalare_id: utgift.betalare_id,
@@ -154,22 +154,22 @@
 
   // ── CRUD utgifter ────────────────────────────────────────────────────────
 
-  async function hamtaUtgifter(roomId) {
+  async function hamtaUtgifter(gruppId) {
     const c = client();
     const { data, error } = await c
       .from("expenses")
       .select()
-      .eq("room_id", roomId)
+      .eq("room_id", gruppId)
       .order("skapad", { ascending: false });
     if (error) throw error;
     return (data || []).map(dbTillKlient);
   }
 
-  async function laggTillUtgiftRum(roomId, utgift, lagdTillAvId) {
+  async function laggTillUtgiftGrupp(gruppId, utgift, lagdTillAvId) {
     const c = client();
     const { data, error } = await c
       .from("expenses")
-      .insert(klientTillDb(roomId, utgift, lagdTillAvId))
+      .insert(klientTillDb(gruppId, utgift, lagdTillAvId))
       .select()
       .single();
     if (error) throw error;
@@ -198,22 +198,22 @@
     if (error) throw error;
   }
 
-  async function raderaUtgiftRum(id) {
+  async function raderaUtgiftGrupp(id) {
     const c = client();
     const { error } = await c.from("expenses").delete().eq("id", id);
     if (error) throw error;
   }
 
-  // ── Gemensam reglering (feature 017) ──────────────────────────────────────
+  // ── Gemensam reglering (feature 017) ──────────────────────────
   // En rad i `settlements` = kreditorn (till_id) har bekräftat att debitorn
   // (fran_id) betalat `belopp`. Nycklas på (room_id, fran_id, till_id).
 
-  async function hamtaKvittenser(roomId) {
+  async function hamtaKvittenser(gruppId) {
     const c = client();
     const { data, error } = await c
       .from("settlements")
       .select()
-      .eq("room_id", roomId);
+      .eq("room_id", gruppId);
     if (error) throw error;
     return (data || []).map((row) => ({
       fran: row.fran_id,
@@ -223,31 +223,31 @@
     }));
   }
 
-  async function kvitteraOverforing(roomId, franId, tillId, belopp) {
+  async function kvitteraOverforing(gruppId, franId, tillId, belopp) {
     const c = client();
     const { error } = await c
       .from("settlements")
       .upsert(
-        { room_id: roomId, fran_id: franId, till_id: tillId, belopp, kvitterad_at: new Date().toISOString() },
+        { room_id: gruppId, fran_id: franId, till_id: tillId, belopp, kvitterad_at: new Date().toISOString() },
         { onConflict: "room_id,fran_id,till_id" }
       );
     if (error) throw error;
   }
 
-  async function avKvitteraOverforing(roomId, franId, tillId) {
+  async function avKvitteraOverforing(gruppId, franId, tillId) {
     const c = client();
     const { error } = await c
       .from("settlements")
       .delete()
-      .eq("room_id", roomId)
+      .eq("room_id", gruppId)
       .eq("fran_id", franId)
       .eq("till_id", tillId);
     if (error) throw error;
   }
 
   window.KvittsSupabase = {
-    skapaRum, haRum, gaMedIRum, hamtaDeltagare,
-    hamtaUtgifter, laggTillUtgiftRum, uppdateraUtgift, raderaUtgiftRum,
+    skapaGrupp, haGrupp, gaMedIGrupp, hamtaDeltagare,
+    hamtaUtgifter, laggTillUtgiftGrupp, uppdateraUtgift, raderaUtgiftGrupp,
     sokMedIdentitetHash, hamtaMedToken, uppdateraMemberIdentitet,
     hamtaKvittenser, kvitteraOverforing, avKvitteraOverforing,
   };

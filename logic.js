@@ -217,29 +217,29 @@ function generateMemberToken() {
 }
 
 /**
- * Plocka ut rum-ID:t ur en pathname som "/r/ABC123".
+ * Plocka ut grupp-ID:t ur en pathname som "/g/ABC123".
  * Tillåter 4–10 alphanumeriska tecken (case-insensitive, normaliserar till
  * versaler). Returnerar null om pathname inte matchar.
  *
  * @param {string} pathname
  * @returns {string | null}
  */
-function parseRumSokvag(pathname) {
+function parseGruppSokvag(pathname) {
   if (typeof pathname !== "string") return null;
-  const m = pathname.match(/^\/r\/([A-Za-z0-9]{4,10})\/?$/);
+  const m = pathname.match(/^\/g\/([A-Za-z0-9]{4,10})\/?$/);
   return m ? m[1].toUpperCase() : null;
 }
 
 /**
- * localStorage-nyckel för stabil deltagar-identitet per rum (feature 018a).
- * Skrivs vid join/skapa, läses vid återbesök på /r/<id> för tyst återanslutning
+ * localStorage-nyckel för stabil deltagar-identitet per grupp (feature 018a).
+ * Skrivs vid join/skapa, läses vid återbesök på /g/<id> för tyst återanslutning
  * även när session-blobben är borta.
  *
- * @param {string} roomId
+ * @param {string} gruppId
  * @returns {string}
  */
-function roomMemberKey(roomId) {
-  return "kvitts_room_" + roomId + "_member_id";
+function gruppMemberKey(gruppId) {
+  return "kvitts_grupp_" + gruppId + "_member_id";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -290,7 +290,7 @@ function matchaPlanMotKvittenser(plan, kvittenser) {
  * @param {Array<{fran: string, till: string, belopp: number}>} kvittenser
  * @returns {boolean}
  */
-function rumFulltReglerat(plan, kvittenser) {
+function gruppFulltReglerat(plan, kvittenser) {
   const matchad = matchaPlanMotKvittenser(plan, kvittenser);
   return matchad.every((rad) => rad.kvitterad);
 }
@@ -344,13 +344,13 @@ if (typeof module !== "undefined") {
     egnaInfoText,
     migreraUtgift,
     minimeradeOverforingar,
-    parseRumSokvag,
-    roomMemberKey,
+    parseGruppSokvag,
+    gruppMemberKey,
     normaliseraEpost,
     hashIdentitet,
     generateMemberToken,
     matchaPlanMotKvittenser,
-    rumFulltReglerat,
+    gruppFulltReglerat,
     debitorArkiverad,
     minRegleringKlar,
   };
