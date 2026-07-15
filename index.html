@@ -194,7 +194,6 @@
   }
   .split-toggle button:hover:not(.aktiv) { color: var(--ink); }
   .split-toggle button.aktiv { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
-  .split-status { font-size: 0.78rem; color: var(--accent); margin-top: 0.3rem; min-height: 1rem; }
   .person-cirklar { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-bottom: 1.5rem; }
   .person-cirkel-wrapper { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; }
   .person-cirkel {
@@ -672,7 +671,6 @@
         <button class="datum-chip-pil" id="datum-pil-fram" onclick="andradatum(1)" aria-label="En dag framåt">&#8250;</button>
       </div>
     </div>
-    <div id="split-status" class="split-status"></div>
     <button class="btn-lagg-till" id="btn-lagg-till" onclick="laggTillUtgift()" disabled>+ Lägg till</button>
   </div>
 
@@ -798,7 +796,6 @@
         <button class="datum-chip-pil" id="edit-datum-pil-fram" onclick="andraEditDatum(1)" aria-label="En dag framåt">&#8250;</button>
       </div>
     </div>
-    <div id="edit-split-status" class="split-status"></div>
     <div class="modal-knappar">
       <button class="btn-radera" onclick="raderaUtgift()" aria-label="Radera">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

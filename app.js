@@ -652,23 +652,16 @@ function uppdateraSplitKnapp(kontext) {
   const arLika = typ === "jamnt";
   let anpassaText;
   if (typ === "egna") {
-    anpassaText = "Egna belopp";
+    anpassaText = "✓ Egna belopp";
   } else if (typ === "delmangd") {
     const namn = inkl.map(id => personer.find(p => p.id === id)?.namn || id);
-    anpassaText = namn.length <= 2 ? "Delas: " + namn.join(" & ") : "Delas av " + namn.length + " st";
+    anpassaText = namn.length <= 2 ? "✓ Delas: " + namn.join(" & ") : "✓ Delas av " + namn.length + " st";
   } else {
     anpassaText = "Fördela…";
   }
   anpassaBtn.textContent = anpassaText;
   likaBtn.classList.toggle("aktiv", arLika);
   anpassaBtn.classList.toggle("aktiv", !arLika);
-
-  // Uppdatera status-raden under togglen
-  const statusId = kontext === "add" ? "split-status" : "edit-split-status";
-  const statusEl = document.getElementById(statusId);
-  if (statusEl) {
-    statusEl.textContent = arLika ? "" : anpassaText;
-  }
 }
 
 function valjDelasLika(kontext) {
