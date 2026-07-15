@@ -639,7 +639,7 @@ function uppdateraSplitKnapp(kontext) {
     const namn = inkl.map(id => personer.find(p => p.id === id)?.namn || id);
     anpassaText = namn.length <= 2 ? "Delas: " + namn.join(" & ") : "Delas av " + namn.length + " st";
   } else {
-    anpassaText = "Anpassa…";
+    anpassaText = "Fördela…";
   }
   anpassaBtn.textContent = anpassaText;
   likaBtn.classList.toggle("aktiv", arLika);

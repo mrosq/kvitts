@@ -92,3 +92,49 @@ if (typ === "exakt") {
 
 - 007 för kontext om split-modalen.
 - Samma behov i rum-läget (004) när det byggs.
+
+## Beslut & förtydligande (2026-07-15)
+
+### Beslut: Alternativ B (toggle i steg 2), inte eget läge
+
+`"exakt"` ligger så nära befintliga `"egna"` att ett helt tredje läge är
+onödig komplexitet. I `"egna"`-läget gäller redan att om delbeloppen summerar
+till totalen så blir `fordelning` exakt dessa belopp (resten som delas = 0).
+Skillnaden mot `"exakt"` är i praktiken bara två saker: (1) totalen härleds ur
+delbeloppen istället för att fyllas i separat, och (2) ingen rest tillåts.
+
+Därför byggs det som en **toggle högst upp i steg 2**:
+`Egna (rest delas)` | `Exakta (ingen rest)`. Mindre kod, en input-vy att
+underhålla, och ingen ny begreppsapparat för användaren.
+
+### Förtydligande av öppen fråga 1: auto-summa vs manuell total
+
+Detta är feature-ens verkliga knäckfråga, inte `raknaDel`. Appen är idag byggd
+kring att **beloppet fylls i först** och driver allt annat: `laggTillUtgift`
+sätter `harBelopp = bel > 0` och hoppar helt över fördelningen om belopp saknas,
+och split-modalens steg 2 läser `belopp`-fältet för sin validering. `"exakt"`
+med auto-summa **vänder på detta** — totalen blir en konsekvens av delbeloppen.
+Det är den ändringen som kostar, inte logiken.
+
+De två vägarna:
+
+- **Manuell total (fits nuvarande flöde):** användaren fyller i totalt belopp
+  som vanligt, matar in exakta andelar, och vi validerar `Σ andelar = totalt`
+  (tolerans 0,001). `raknaDel`-valideringen har då ett syfte. Nackdel: dubbel
+  inmatning (både total *och* alla delar) → mer att skriva och lätt att få
+  "beloppen stämmer inte"-fel.
+- **Auto-summa (bättre UX, mer jobb):** totalfältet räknas ut live som Σ delar
+  och gråas ut/låses. Ingen dubbelinmatning, och `Σ = totalt` är sant per
+  konstruktion → `raknaDel`-valideringen blir i praktiken meningslös (kan aldrig
+  slå till). Kräver att formulärflödet inte längre kräver manuellt ifyllt
+  belopp: `belopp`-fältet måste beräknas och skrivas tillbaka, och `laggTillUtgift`/
+  `sparaEdit` måste acceptera att belopp kommer från summan istället för fältet.
+
+**Rekommendation:** auto-summa. Det är hela poängen med läget (slippa räkna ihop
+restaurangnotan själv) och tar bort en hel klass av valideringsfel. Priset är
+att "belopp-först"-antagandet i formuläret måste luckras upp — avgränsa noga så
+att `"jamnt"`/`"delmangd"`/`"egna"` beter sig exakt som förut.
+
+Kvarstående småfrågor att lösa vid bygge: hur en utgift *utan* belopp ("– kr")
+samspelar med exakt-läget (troligen: exakt kräver minst ett delbelopp > 0), och
+knapptexten på toggeln.

@@ -3,7 +3,7 @@
 // VIKTIGT: bumpa CACHE_NAME manuellt vid deploys som ändrar cachade assets
 // (index.html, app.js, logic.js, supabase.js, config.js, ikoner, manifest).
 // Annars servas den gamla versionen ur cachen för alltid.
-const CACHE_NAME = "kvitts-v6";
+const CACHE_NAME = "kvitts-v7";
 
 const APP_SKAL = [
   "/",
