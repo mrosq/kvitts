@@ -425,10 +425,14 @@ describe("egnaInfoText", () => {
     assert.ok(txt.includes("100,00"));
   });
 
-  it("egna exakt = beloppet", () => {
+  it("egna exakt = beloppet → exakt fördelning-text", () => {
     const txt = egnaInfoText(100, { p1: 50, p2: 50 }, DEL2);
-    assert.ok(txt.includes("Delas"));
-    assert.ok(txt.includes("0,00"));
+    assert.ok(txt.includes("Exakt fördelning"), "ska visa Exakt fördelning");
+  });
+
+  it("exakt fördelning N=3 (hamburgare-fallet)", () => {
+    const txt = egnaInfoText(420, { p1: 240, p2: 180, p3: 0 }, DEL3);
+    assert.ok(txt.includes("Exakt fördelning"), "ska visa Exakt fördelning");
   });
 });
 

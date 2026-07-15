@@ -107,6 +107,9 @@ function egnaInfoText(belopp, egna = {}, deltagare = []) {
       " kr)"
     );
   }
+  if (kvar < 0.001) {
+    return "Exakt fördelning ✓";
+  }
   const delat = kvar / n;
   return (
     "Delas: " +

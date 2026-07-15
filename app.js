@@ -26,6 +26,7 @@ let editSplitEgna = {};
 let splitModalKontext = "add";   // "add" | "edit"
 let splitModalTempInkluderade = [];
 let splitModalTempEgna = {};
+let _autoTotalLage = false;       // sant om beloppsfältet var tomt när steg 2 öppnades
 
 // 018b: state för join/återanslutningsflödet
 let _joinEpost = "";           // sparas tillfälligt under join-flödet
@@ -534,6 +535,8 @@ function visaSplitSteg1() {
 
 function visaSplitSteg2() {
   const beloppId = splitModalKontext === "add" ? "belopp" : "edit-belopp";
+  const befintligtBelopp = parseFloat(document.getElementById(beloppId).value) || 0;
+  _autoTotalLage = befintligtBelopp <= 0;
   const container = document.getElementById("split-egna-falt");
   container.innerHTML = splitModalTempInkluderade.map(id => {
     const p = personer.find(x => x.id === id);
@@ -560,11 +563,19 @@ function visaSplitSteg1FranSteg2() {
 
 function uppdateraSplitEgnaInfo() {
   const beloppId = splitModalKontext === "add" ? "belopp" : "edit-belopp";
-  const bel = parseFloat(document.getElementById(beloppId).value) || 0;
   const egna = {};
+  let summa = 0;
   for (const id of splitModalTempInkluderade) {
-    egna[id] = parseFloat(document.getElementById("split-egna-" + id)?.value) || 0;
+    const v = parseFloat(document.getElementById("split-egna-" + id)?.value) || 0;
+    egna[id] = v;
+    summa += v;
   }
+  // Auto-total: om beloppsfältet var tomt när steg 2 öppnades, håll det
+  // synkat med summan av delbeloppen så användaren slipper räkna ihop totalen.
+  if (_autoTotalLage && summa > 0) {
+    document.getElementById(beloppId).value = summa.toFixed(2).replace(/\.00$/, "");
+  }
+  const bel = parseFloat(document.getElementById(beloppId).value) || 0;
   document.getElementById("split-egna-info").textContent = egnaInfoText(bel, egna, splitModalTempInkluderade);
 }
 
