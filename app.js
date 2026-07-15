@@ -1373,8 +1373,8 @@ function laddaNotiser(gruppId) {
   try { return JSON.parse(localStorage.getItem(notisListaKey(gruppId))) || []; } catch (_) { return []; }
 }
 function sparaNotiser(gruppId, lista) {
-  // Behåll max 50 senaste
-  const trimmad = lista.slice(0, 50);
+  // Behåll max 20 senaste
+  const trimmad = lista.slice(0, 20);
   localStorage.setItem(notisListaKey(gruppId), JSON.stringify(trimmad));
 }
 
