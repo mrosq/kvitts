@@ -873,7 +873,7 @@ function uppdatera() {
   const totaltTxt = totalt > 0 ? "Totalt " + totalt.toFixed(2).replace(".",",") + " kr i utgifter" : "";
   if (Math.abs(saldoMig) < 0.01) {
     kortEl.className = "saldo-kort noll";
-    labelEl.textContent = "Jämnt";
+    labelEl.textContent = "Du är KVITT";
     belEl.textContent = "";
     txtEl.textContent = totaltTxt;
   } else if (saldoMig > 0) {
