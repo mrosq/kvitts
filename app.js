@@ -983,7 +983,7 @@ function visaSaldoDetalj() {
   const mittHtml = mittSaldo.map(({ id, netto }) => {
     const namn = esc(personer.find(p => p.id === id)?.namn || id);
     if (Math.abs(netto) < 0.01) {
-      return `<div class="saldo-detalj-rad noll"><strong>${namn}</strong>: jämnt</div>`;
+      return `<div class="saldo-detalj-rad noll"><strong>${namn}</strong>: Du är KVITT</div>`;
     } else if (netto > 0) {
       return `<div class="saldo-detalj-rad"><strong>${namn}</strong> skall betala dig <strong>${netto.toFixed(2).replace(".",",")} kr</strong></div>`;
     } else {
