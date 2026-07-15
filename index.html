@@ -217,6 +217,17 @@
   .btn-lagg-till:not(:disabled):active { transform: scale(0.97); }
 
   .historik-lista { display: flex; flex-direction: column; gap: 0.6rem; }
+  .historik-dag { display: flex; flex-direction: column; }
+  .historik-dag-rubrik {
+    display: flex; align-items: center; gap: 0.5rem;
+    background: none; border: none; width: 100%; text-align: left;
+    padding: 0.5rem 0; cursor: pointer; font-family: 'DM Sans', sans-serif;
+    border-bottom: 1px solid var(--border);
+  }
+  .historik-dag-pil { font-size: 0.7rem; color: var(--muted); width: 12px; flex-shrink: 0; }
+  .historik-dag-titel { font-size: 0.82rem; font-weight: 600; color: var(--ink); flex: 1; }
+  .historik-dag-antal { font-size: 0.75rem; color: var(--muted); }
+  .historik-dag-rader { display: flex; flex-direction: column; gap: 0.5rem; padding-top: 0.4rem; }
   .historik-lista .utgift-rad:nth-child(1)  { animation-delay: 0ms; }
   .historik-lista .utgift-rad:nth-child(2)  { animation-delay: 40ms; }
   .historik-lista .utgift-rad:nth-child(3)  { animation-delay: 80ms; }

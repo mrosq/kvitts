@@ -893,28 +893,86 @@ function uppdatera() {
     return;
   }
   const sorterade = [...utgifter].sort((a, b) => (b.datum || "").localeCompare(a.datum || ""));
-  lista.innerHTML = sorterade.map(u => {
-    const betalare = personer.find(p => p.id === u.betalare_id);
-    const betalareNamn = betalare?.namn || u.betalare_id;
-    const badgeKlass = u.betalare_id === migId ? "p1" : "p2";
-    const harBelopp = u.belopp > 0;
-    const beloppText = harBelopp ? u.belopp.toFixed(2).replace(".",",") + " kr" : "– kr";
+
+  // Gruppera per datum
+  const grupper = [];
+  for (const u of sorterade) {
+    const d = u.datum || "";
+    if (grupper.length === 0 || grupper[grupper.length - 1].datum !== d) {
+      grupper.push({ datum: d, utgifter: [] });
+    }
+    grupper[grupper.length - 1].utgifter.push(u);
+  }
+
+  // Idag och igår expanderade, äldre kollapsade från start
+  const idag = datumTillStr(new Date());
+  const igar = datumTillStr(new Date(Date.now() - 86400000));
+
+  lista.innerHTML = grupper.map(g => {
+    const kollapsad = !_kollapsadeDatum.has(g.datum)
+      ? (g.datum !== idag && g.datum !== igar)
+      : _kollapsadeDatum.get(g.datum);
+
+    const rubrik = g.datum === idag ? "Idag"
+      : g.datum === igar ? "Igår"
+      : datumRubrik(g.datum);
+    const pil = kollapsad ? "▶" : "▼";
+    const antal = g.utgifter.length;
+    const antalTxt = antal === 1 ? "1 utgift" : antal + " utgifter";
+
+    const rader = kollapsad ? "" : g.utgifter.map(u => {
+      const betalare = personer.find(p => p.id === u.betalare_id);
+      const betalareNamn = betalare?.namn || u.betalare_id;
+      const badgeKlass = u.betalare_id === migId ? "p1" : "p2";
+      const harBelopp = u.belopp > 0;
+      const beloppText = harBelopp ? u.belopp.toFixed(2).replace(".", ",") + " kr" : "– kr";
+      return `
+        <div class="utgift-rad" onclick="oppnaDetaljer('${u.id}')">
+          <div class="utgift-info">
+            <div class="utgift-beskrivning">${esc(u.beskrivning)}</div>
+            <span class="betald-badge ${badgeKlass}">Betalt av ${esc(betalareNamn)}</span>
+          </div>
+          <div class="utgift-belopp">
+            <div class="utgift-totalt">${beloppText}</div>
+            <div class="edit-hint">tryck för detaljer</div>
+          </div>
+        </div>`;
+    }).join("");
+
     return `
-      <div class="utgift-rad" onclick="oppnaDetaljer('${u.id}')">
-        <div class="utgift-info">
-          <div class="utgift-beskrivning">${esc(u.beskrivning)}</div>
-          <div class="utgift-meta">${u.datum}</div>
-          <span class="betald-badge ${badgeKlass}">Betalt av ${esc(betalareNamn)}</span>
-        </div>
-        <div class="utgift-belopp">
-          <div class="utgift-totalt">${beloppText}</div>
-          <div class="edit-hint">tryck för detaljer</div>
-        </div>
+      <div class="historik-dag">
+        <button class="historik-dag-rubrik" onclick="togglaHistorikDag('${g.datum}')">
+          <span class="historik-dag-pil">${pil}</span>
+          <span class="historik-dag-titel">${esc(rubrik)}</span>
+          <span class="historik-dag-antal">${antalTxt}</span>
+        </button>
+        <div class="historik-dag-rader">${rader}</div>
       </div>`;
   }).join("");
 }
 
 function esc(s) { return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+// Tillstånd för kollapsade dagrupper (Map datum→boolean, nollställs vid sidladdning)
+const _kollapsadeDatum = new Map();
+
+// "2026-07-14" → "Tisdag 14 jul"
+function datumRubrik(datumStr) {
+  const d = new Date(datumStr);
+  if (isNaN(d)) return datumStr;
+  const dag = ["Söndag","Måndag","Tisdag","Onsdag","Torsdag","Fredag","Lördag"][d.getDay()];
+  const man = ["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"][d.getMonth()];
+  return dag + " " + d.getDate() + " " + man;
+}
+
+function togglaHistorikDag(datum) {
+  const idag = datumTillStr(new Date());
+  const igar = datumTillStr(new Date(Date.now() - 86400000));
+  const defaultKollapsad = datum !== idag && datum !== igar;
+  const nuvarande = _kollapsadeDatum.has(datum) ? _kollapsadeDatum.get(datum) : defaultKollapsad;
+  _kollapsadeDatum.set(datum, !nuvarande);
+  uppdatera();
+}
 
 function visaSaldoDetalj() {
   const lista = document.getElementById("saldo-detalj-lista");
