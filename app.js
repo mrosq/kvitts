@@ -787,10 +787,11 @@ function renderaFordelningslista(u) {
     const nollKlass = andel < 0.001 ? " noll" : "";
     const taggKlass = u.betalare_id === migId ? "p1" : "p2";
     const tagg = p.id === u.betalare_id ? `<span class="fordelning-betalt-tagg ${taggKlass}">betalade</span>` : "";
+    const beloppTxt = andel.toFixed(2).replace(".",",") + " kr";
     return `
       <div class="fordelning-rad${nollKlass}">
-        <span class="fordelning-namn">${esc(p.namn)}${tagg}</span>
-        <span class="fordelning-belopp">${andel.toFixed(2).replace(".",",")} kr</span>
+        <span class="fordelning-namn">${esc(p.namn)}:${tagg}</span>
+        <span class="fordelning-belopp">${beloppTxt}</span>
       </div>`;
   }).join("");
 }
