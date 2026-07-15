@@ -1676,7 +1676,7 @@ async function bekraftaGaMed() {
   const gruppId = parsaGruppInput(document.getElementById("ga-med-input").value);
   if (!gruppId) return;
   stangModal("ga-med-modal");
-  await startaJoinFlode(gruppId);
+  await forsokTystAteranslutning(gruppId);
 }
 
 function skapaGruppFranMeny() {
