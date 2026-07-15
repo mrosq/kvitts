@@ -1670,6 +1670,8 @@ async function bekraftaGaMed() {
   stangModal("ga-med-modal");
   await startaJoinFlode(gruppId);
 }
+
+function skapaGruppFranMeny() {
   stangModal("meny-modal");
   // Nollställ ev. kvarhängande skapa-grupp-state så en ny grupp skapas rent.
   _gruppSkapat = null;
