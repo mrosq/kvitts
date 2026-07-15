@@ -96,5 +96,9 @@ Annars skulle en ny deltagare få en flod av notiser för hela historiken.
 
 ## När levererad
 
-Sammanfatta vad som faktiskt byggdes och flytta filen till
-`docs/features/done/`.
+Levererad 2026-07-15. Implementerad via polling-diff mot localStorage-snapshot,
+inga schema-ändringar. `diffaNotiser()` och `relativTid()` i logic.js (rena
+funktioner med 12 tester). Notiser genereras för nya/ändrade/raderade utgifter
+och nya deltagare; egna handlingar filtreras. SVG-klockikon i topbar (dold
+utanför grupp-läge) med oläst-badge i accentfärg. Modal med lista nyast först,
+relativ tid, max 20 notiser. Öppna modal = allt markerat som läst.

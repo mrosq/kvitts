@@ -37,4 +37,8 @@ att "tisdagen var stängd".
 
 ## När levererad
 
-Sammanfatta och flytta till `docs/features/done/`.
+Levererad 2026-07-15. Historiklistan grupperas per datum med klickbara
+rubriker (▼/▶). Idag och igår expanderade som standard, äldre kollapsade.
+`datumRubrik()` formaterar "Tisdag 14 jul" etc. Kollapstillstånd i `Map` i
+minnet, nollställs vid sidladdning. Datum-kolumnen per rad borttagen
+(redundant när datumet är rubrik). Inga ändringar i logic.js eller datamodell.
