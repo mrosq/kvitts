@@ -194,6 +194,7 @@
   }
   .split-toggle button:hover:not(.aktiv) { color: var(--ink); }
   .split-toggle button.aktiv { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+  .split-status { font-size: 0.78rem; color: var(--accent); margin-top: 0.3rem; min-height: 1rem; }
   .person-cirklar { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-bottom: 1.5rem; }
   .person-cirkel-wrapper { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; }
   .person-cirkel {
@@ -671,6 +672,7 @@
         <button class="datum-chip-pil" id="datum-pil-fram" onclick="andradatum(1)" aria-label="En dag framåt">&#8250;</button>
       </div>
     </div>
+    <div id="split-status" class="split-status"></div>
     <button class="btn-lagg-till" id="btn-lagg-till" onclick="laggTillUtgift()" disabled>+ Lägg till</button>
   </div>
 
@@ -796,6 +798,7 @@
         <button class="datum-chip-pil" id="edit-datum-pil-fram" onclick="andraEditDatum(1)" aria-label="En dag framåt">&#8250;</button>
       </div>
     </div>
+    <div id="edit-split-status" class="split-status"></div>
     <div class="modal-knappar">
       <button class="btn-radera" onclick="raderaUtgift()" aria-label="Radera">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -820,17 +823,17 @@
       <div class="modal-knappar">
         <button class="btn-avbryt" onclick="stangSplitModal()">Avbryt</button>
         <button class="btn-avbryt" onclick="visaSplitSteg2()">Egna belopp →</button>
-        <button class="btn-bekrafta" onclick="sparaDelmangd()">Spara</button>
+        <button class="btn-bekrafta" onclick="sparaDelmangd()">Klar</button>
       </div>
     </div>
     <div id="split-steg-2" style="display:none">
       <h2>Egna belopp</h2>
-      <p class="modal-sub">Fyll bara i det som är personligt för en person — t.ex. en extra vara som bara hen köpt. Resten av beloppet delas lika.</p>
+      <p class="modal-sub" id="split-steg2-sub"></p>
       <div class="split-inputs" id="split-egna-falt"></div>
       <div class="egna-info" id="split-egna-info" style="margin-bottom:0.7rem;"></div>
       <div class="modal-knappar">
         <button class="btn-avbryt" onclick="visaSplitSteg1FranSteg2()">← Tillbaka</button>
-        <button class="btn-bekrafta" onclick="sparaEgnaFranModal()">Spara</button>
+        <button class="btn-bekrafta" onclick="sparaEgnaFranModal()">Klar</button>
       </div>
     </div>
   </div>

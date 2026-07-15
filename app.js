@@ -537,6 +537,13 @@ function visaSplitSteg2() {
   const beloppId = splitModalKontext === "add" ? "belopp" : "edit-belopp";
   const befintligtBelopp = parseFloat(document.getElementById(beloppId).value) || 0;
   _autoTotalLage = befintligtBelopp <= 0;
+  // Sätt subtitle beroende på läge
+  const subEl = document.getElementById("split-steg2-sub");
+  if (subEl) {
+    subEl.textContent = _autoTotalLage
+      ? "Ange vad var och en betalar — totalen räknas ut automatiskt."
+      : "Fyll bara i det som är personligt, t.ex. en extra vara. Resten av beloppet delas lika.";
+  }
   const container = document.getElementById("split-egna-falt");
   container.innerHTML = splitModalTempInkluderade.map(id => {
     const p = personer.find(x => x.id === id);
@@ -655,6 +662,13 @@ function uppdateraSplitKnapp(kontext) {
   anpassaBtn.textContent = anpassaText;
   likaBtn.classList.toggle("aktiv", arLika);
   anpassaBtn.classList.toggle("aktiv", !arLika);
+
+  // Uppdatera status-raden under togglen
+  const statusId = kontext === "add" ? "split-status" : "edit-split-status";
+  const statusEl = document.getElementById(statusId);
+  if (statusEl) {
+    statusEl.textContent = arLika ? "" : anpassaText;
+  }
 }
 
 function valjDelasLika(kontext) {
