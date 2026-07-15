@@ -1635,6 +1635,14 @@ function vaxlaTillSessionFranMeny(id) {
 // NY SESSION-FORM
 function visaGaMedModal() {
   stangModal("meny-modal");
+  _oppnaGaMedModal();
+}
+
+function visaGaMedFranStart() {
+  _oppnaGaMedModal();
+}
+
+function _oppnaGaMedModal() {
   document.getElementById("ga-med-input").value = "";
   document.getElementById("ga-med-fel").style.display = "none";
   document.getElementById("btn-ga-med").disabled = true;
