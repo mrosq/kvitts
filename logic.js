@@ -412,13 +412,12 @@ function diffaNotiser(snapshot, nuUtgifter, nuDeltagare, migId) {
         tid,
       });
     } else if (gammal.beskrivning !== u.beskrivning || Math.abs(gammal.belopp - u.belopp) > 0.001) {
-      // Ändrad — filtrera egna
-      if (u.lagd_till_av_id === migId) continue;
-      const laggareNamn = (nuDeltagare || []).find(d => d.id === u.lagd_till_av_id)?.namn || "Någon";
+      // Ändrad — vi vet inte VEM som ändrade (lagd_till_av_id är ursprunglig skapare).
+      // Visa bara att utgiften ändrades, utan personnamn.
       nyaNotiser.push({
         id: "andrad_" + u.id + "_" + tid,
         typ: "andrad",
-        text: laggareNamn + " ändrade " + u.beskrivning,
+        text: u.beskrivning + " ändrades",
         tid,
       });
     }

@@ -1153,12 +1153,14 @@ describe("diffaNotiser", () => {
     assert.equal(nyaNotiser.length, 0);
   });
 
-  it("ändrad utgift av annan → notis", () => {
+  it("ändrad utgift av annan → notis utan personnamn", () => {
     const snapshot = { utgifter: { u1: { beskrivning: "Mat", belopp: 100 } }, deltagare: ["p1", "p2"] };
     const andrad = [{ id: "u1", beskrivning: "Mat", belopp: 150, lagd_till_av_id: "p2" }];
     const { nyaNotiser } = diffaNotiser(snapshot, andrad, P, "p1");
     assert.equal(nyaNotiser.length, 1);
     assert.equal(nyaNotiser[0].typ, "andrad");
+    assert.ok(nyaNotiser[0].text.includes("Mat"));
+    assert.ok(!nyaNotiser[0].text.includes("Anna"), "ingen person i andrad-notis");
   });
 
   it("raderad utgift → notis", () => {
