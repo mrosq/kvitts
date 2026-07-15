@@ -16,6 +16,8 @@ const {
   gruppFulltReglerat,
   debitorArkiverad,
   minRegleringKlar,
+  relativTid,
+  diffaNotiser,
 } = require("./logic");
 
 // ---------------------------------------------------------------------------
@@ -1090,6 +1092,105 @@ describe("integration 017: plan → reglering", () => {
     const matchad = matchaPlanMotKvittenser(plan2, kv);
     assert.equal(matchad[0].stale, true, "gammal kvittens är nu stale");
     assert.equal(gruppFulltReglerat(plan2, kv), false, "inte längre reglerat");
+  });
+});
+
+// ===========================================================================
+// relativTid
+// ===========================================================================
+describe("relativTid", () => {
+  const nu = new Date("2026-07-15T12:00:00Z").getTime();
+
+  it("under 60 s → 'just nu'", () => {
+    const iso = new Date(nu - 30_000).toISOString();
+    assert.equal(relativTid(iso, nu), "just nu");
+  });
+
+  it("1–59 min → 'X min sedan'", () => {
+    const iso = new Date(nu - 5 * 60_000).toISOString();
+    assert.equal(relativTid(iso, nu), "5 min sedan");
+  });
+
+  it("1–23 h → 'X h sedan'", () => {
+    const iso = new Date(nu - 3 * 3600_000).toISOString();
+    assert.equal(relativTid(iso, nu), "3 h sedan");
+  });
+
+  it("≥ 1 dag → datum", () => {
+    const iso = new Date(nu - 2 * 86400_000).toISOString();
+    const txt = relativTid(iso, nu);
+    assert.ok(txt.match(/^\d{4}-\d{2}-\d{2}$/), "ska vara ett datum: " + txt);
+  });
+});
+
+// ===========================================================================
+// diffaNotiser
+// ===========================================================================
+describe("diffaNotiser", () => {
+  const P = [{ id: "p1", namn: "Mikael" }, { id: "p2", namn: "Anna" }];
+  const UTG = [{ id: "u1", beskrivning: "Mat", belopp: 100, lagd_till_av_id: "p2" }];
+
+  it("null snapshot → inga notiser, men nySnapshot är satt", () => {
+    const { nyaNotiser, nySnapshot } = diffaNotiser(null, UTG, P, "p1");
+    assert.equal(nyaNotiser.length, 0, "inga notiser vid seed");
+    assert.ok(nySnapshot.utgifter["u1"], "snapshot har utgiften");
+    assert.ok(nySnapshot.deltagare.includes("p1"), "snapshot har deltagare");
+  });
+
+  it("ny utgift av annan → notis", () => {
+    const snapshot = { utgifter: {}, deltagare: ["p1", "p2"] };
+    const { nyaNotiser } = diffaNotiser(snapshot, UTG, P, "p1");
+    assert.equal(nyaNotiser.length, 1);
+    assert.equal(nyaNotiser[0].typ, "ny");
+    assert.ok(nyaNotiser[0].text.includes("Anna"), "namn med");
+    assert.ok(nyaNotiser[0].text.includes("Mat"), "beskrivning med");
+  });
+
+  it("egen ny utgift → ingen notis", () => {
+    const snapshot = { utgifter: {}, deltagare: ["p1", "p2"] };
+    const egnaUtg = [{ id: "u1", beskrivning: "Mat", belopp: 100, lagd_till_av_id: "p1" }];
+    const { nyaNotiser } = diffaNotiser(snapshot, egnaUtg, P, "p1");
+    assert.equal(nyaNotiser.length, 0);
+  });
+
+  it("ändrad utgift av annan → notis", () => {
+    const snapshot = { utgifter: { u1: { beskrivning: "Mat", belopp: 100 } }, deltagare: ["p1", "p2"] };
+    const andrad = [{ id: "u1", beskrivning: "Mat", belopp: 150, lagd_till_av_id: "p2" }];
+    const { nyaNotiser } = diffaNotiser(snapshot, andrad, P, "p1");
+    assert.equal(nyaNotiser.length, 1);
+    assert.equal(nyaNotiser[0].typ, "andrad");
+  });
+
+  it("raderad utgift → notis", () => {
+    const snapshot = { utgifter: { u1: { beskrivning: "Mat", belopp: 100 } }, deltagare: ["p1", "p2"] };
+    const { nyaNotiser } = diffaNotiser(snapshot, [], P, "p1");
+    assert.equal(nyaNotiser.length, 1);
+    assert.equal(nyaNotiser[0].typ, "raderad");
+    assert.ok(nyaNotiser[0].text.includes("Mat"));
+  });
+
+  it("ny deltagare → notis, inte för mig själv", () => {
+    const snapshot = { utgifter: {}, deltagare: ["p1"] };
+    const { nyaNotiser } = diffaNotiser(snapshot, [], P, "p1");
+    assert.equal(nyaNotiser.length, 1);
+    assert.equal(nyaNotiser[0].typ, "join");
+    assert.ok(nyaNotiser[0].text.includes("Anna"));
+  });
+
+  it("ingen förändring → inga notiser", () => {
+    const snapshot = {
+      utgifter: { u1: { beskrivning: "Mat", belopp: 100 } },
+      deltagare: ["p1", "p2"],
+    };
+    const { nyaNotiser } = diffaNotiser(snapshot, UTG, P, "p1");
+    assert.equal(nyaNotiser.length, 0);
+  });
+
+  it("nySnapshot speglar nuvarande state", () => {
+    const snapshot = { utgifter: {}, deltagare: [] };
+    const { nySnapshot } = diffaNotiser(snapshot, UTG, P, "p1");
+    assert.deepEqual(nySnapshot.utgifter.u1, { beskrivning: "Mat", belopp: 100 });
+    assert.deepEqual(nySnapshot.deltagare.sort(), ["p1", "p2"]);
   });
 });
 

@@ -88,10 +88,22 @@ if (typ === "exakt") {
   auto-summering aktiveras?
 - Knapptext i split-knappen: "Exakta belopp"? Eller nåt kortare?
 
-## Relaterat
+## När levererad
 
-- 007 för kontext om split-modalen.
-- Samma behov i rum-läget (004) när det byggs.
+Levererad 2026-07-15. Implementerad utan nytt läge eller toggle — befintliga
+"egna belopp"-steget täcker båda fallen implicit:
+
+- **Extras-fallet** (Robbans tröja): fyll i totalen först, lägg till extras i
+  steg 2. Infotext visar "Resten X kr delas lika".
+- **Exakt-fallet** (alla beställde olika): lämna beloppsfältet tomt, fyll i
+  individuella belopp i steg 2. Beloppsfältet auto-uppdateras med summan,
+  infotext visar "Exakt fördelning ✓".
+
+`egnaInfoText` i logic.js fick ett rest ≈ 0-fall ("Exakt fördelning ✓").
+`visaSplitSteg2` sätter flaggan `_autoTotalLage`; `uppdateraSplitEgnaInfo`
+skriver tillbaka summan till beloppsfältet när flaggan är satt.
+Steg 2-subtiteln är nu dynamisk beroende på läge.
+
 
 ## Beslut & förtydligande (2026-07-15)
 

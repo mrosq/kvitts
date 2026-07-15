@@ -330,6 +330,25 @@
   }
   .btn-meny-ikon:hover { color: var(--ink); }
   .btn-meny-ikon[hidden] { display: none; }
+  .btn-notis-ikon {
+    background: none; border: none; font-size: 1.2rem; cursor: pointer;
+    color: var(--muted); padding: 0.2rem 0.4rem; border-radius: 8px; line-height: 1;
+    position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    display: flex; align-items: center; gap: 2px;
+  }
+  .btn-notis-ikon:hover { color: var(--ink); }
+  .btn-notis-ikon[hidden] { display: none; }
+  .notis-badge {
+    background: var(--accent); color: #fff; border-radius: 99px;
+    font-size: 0.65rem; font-weight: 700; line-height: 1;
+    padding: 1px 5px; min-width: 16px; text-align: center;
+  }
+  .notis-rad { display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 0.5rem; padding: 0.65rem 0; border-bottom: 1px solid var(--border); }
+  .notis-rad:last-child { border-bottom: none; }
+  .notis-text { font-size: 0.9rem; color: var(--ink); flex: 1; }
+  .notis-tid { font-size: 0.75rem; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+  .notis-tom { color: var(--muted); font-size: 0.9rem; text-align: center; padding: 1rem 0; }
   .meny-lista { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.5rem; }
   .meny-rad {
     width: 100%; padding: 1rem 1.1rem; text-align: left; background: var(--bg);
@@ -462,6 +481,9 @@
 <input type="file" id="ladda-input" accept=".json,application/json" style="display:none" onchange="laddaFil(event)"/>
 
 <header class="brand-topbar">
+  <button class="btn-notis-ikon" id="notis-knapp" onclick="visaNotisFlode()" title="Notiser" hidden>
+    🔔<span class="notis-badge" id="notis-badge" hidden></span>
+  </button>
   <span class="wordmark">Kvitts</span>
   <button class="btn-meny-ikon" id="topbar-meny" onclick="visaMeny()" title="Mer" hidden>⚙</button>
 </header>
@@ -811,7 +833,18 @@
 </div>
 
 <!-- SPLIT MODAL -->
-<div class="modal-overlay" id="split-modal" onclick="stangSplitModalVidKlickUtanfor(event)">
+<!-- NOTIS-MODAL (feature 023) -->
+<div class="modal-overlay" id="notis-modal" onclick="if(event.target===this)stangModal('notis-modal')">
+  <div class="modal">
+    <h2>Notiser</h2>
+    <div id="notis-lista"></div>
+    <div class="modal-knappar">
+      <button class="btn-avbryt" style="flex:none;width:100%;" onclick="stangModal('notis-modal')">Stäng</button>
+    </div>
+  </div>
+</div>
+
+<!-- SPLIT-MODAL -->
   <div class="modal">
     <div id="split-steg-1">
       <h2>Vem var med?</h2>

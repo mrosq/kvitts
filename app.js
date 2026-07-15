@@ -435,6 +435,10 @@ function visaApp() {
     subtitleEl.textContent = subtitle;
   }
 
+  const notisKnapp = document.getElementById("notis-knapp");
+  if (notisKnapp) notisKnapp.hidden = !(s && s.kind === "grupp");
+  uppdateraOlastBadge();
+
   // Read-only-läge för reglerade sessioner
   const reglerad = aktivArReglerad();
   document.getElementById("reglerad-banner").style.display = reglerad ? "block" : "none";
@@ -1327,6 +1331,8 @@ async function refreshDeltagareOchUtgifter(forcera = false) {
     if (andradPersoner || andradUtgifter || andradKvittenser) {
       kontrolleraAutoArkivering();
     }
+    // 023: diff mot snapshot och generera notiser
+    processaNotiser(fraBackend, deltagare);
   } catch (e) {
     console.error("Kunde inte hämta grupp-data:", e);
     // Kontrollera om gruppen är borttagen (404-liknande: inga deltagare returneras alls)
@@ -1348,6 +1354,78 @@ async function hamtaKvittenserBestEffort(gruppId) {
     console.warn("Kunde inte hämta kvittenser (fortsätter utan):", e);
     return _kvittenser;
   }
+}
+
+// =============================================================================
+// INTERN NOTIFIERING (feature 023)
+// =============================================================================
+
+function notisSnapshotKey(gruppId) { return "kvitts_grupp_" + gruppId + "_notis_snapshot"; }
+function notisListaKey(gruppId)    { return "kvitts_grupp_" + gruppId + "_notiser"; }
+
+function laddaNotisSnapshot(gruppId) {
+  try { return JSON.parse(localStorage.getItem(notisSnapshotKey(gruppId))); } catch (_) { return null; }
+}
+function sparaNotisSnapshot(gruppId, snapshot) {
+  localStorage.setItem(notisSnapshotKey(gruppId), JSON.stringify(snapshot));
+}
+function laddaNotiser(gruppId) {
+  try { return JSON.parse(localStorage.getItem(notisListaKey(gruppId))) || []; } catch (_) { return []; }
+}
+function sparaNotiser(gruppId, lista) {
+  // Behåll max 50 senaste
+  const trimmad = lista.slice(0, 50);
+  localStorage.setItem(notisListaKey(gruppId), JSON.stringify(trimmad));
+}
+
+function processaNotiser(nuUtgifter, nuDeltagare) {
+  const grupp = aktivGruppData();
+  if (!grupp) return;
+  const snapshot = laddaNotisSnapshot(grupp.gruppId);
+  const { nyaNotiser, nySnapshot } = diffaNotiser(snapshot, nuUtgifter, nuDeltagare, migId);
+  sparaNotisSnapshot(grupp.gruppId, nySnapshot);
+  if (nyaNotiser.length > 0) {
+    const befintliga = laddaNotiser(grupp.gruppId);
+    sparaNotiser(grupp.gruppId, [...nyaNotiser, ...befintliga]);
+    uppdateraOlastBadge();
+  }
+}
+
+function antalOlasta(gruppId) {
+  return laddaNotiser(gruppId).filter(n => !n.last).length;
+}
+
+function uppdateraOlastBadge() {
+  const grupp = aktivGruppData();
+  const badge = document.getElementById("notis-badge");
+  if (!badge) return;
+  const antal = grupp ? antalOlasta(grupp.gruppId) : 0;
+  badge.textContent = antal > 9 ? "9+" : antal > 0 ? String(antal) : "";
+  badge.hidden = antal === 0;
+}
+
+function visaNotisFlode() {
+  const grupp = aktivGruppData();
+  if (!grupp) return;
+  const lista = laddaNotiser(grupp.gruppId);
+
+  const container = document.getElementById("notis-lista");
+  if (lista.length === 0) {
+    container.innerHTML = '<p class="notis-tom">Inga notiser än.</p>';
+  } else {
+    container.innerHTML = lista.map(n => `
+      <div class="notis-rad">
+        <span class="notis-text">${esc(n.text)}</span>
+        <span class="notis-tid">${relativTid(n.tid)}</span>
+      </div>`).join("");
+  }
+
+  // Markera alla som lästa
+  const markerade = lista.map(n => ({ ...n, last: true }));
+  sparaNotiser(grupp.gruppId, markerade);
+  uppdateraOlastBadge();
+
+  document.getElementById("notis-modal").classList.add("visa");
 }
 
 // 017: Om alla mina skulder i den optimerade planen är kvitterade av

@@ -339,6 +339,107 @@ function minRegleringKlar(plan, kvittenser, migId) {
   return minaRader.every((rad) => rad.kvitterad);
 }
 
+// =============================================================================
+// INTERN NOTIFIERING (feature 023)
+// =============================================================================
+
+/**
+ * Formaterar en ISO-tidsstämpel som relativ tid ("just nu", "5 min sedan" osv).
+ * Ren funktion — baseras på Date.now() som kan mockas i tester via `nu`-param.
+ *
+ * @param {string} iso   - ISO 8601-sträng
+ * @param {number} [nu]  - aktuell tidpunkt i ms (default: Date.now())
+ * @returns {string}
+ */
+function relativTid(iso, nu = Date.now()) {
+  const diff = Math.floor((nu - new Date(iso).getTime()) / 1000);
+  if (diff < 60) return "just nu";
+  if (diff < 3600) return Math.floor(diff / 60) + " min sedan";
+  if (diff < 86400) return Math.floor(diff / 3600) + " h sedan";
+  return new Date(iso).toLocaleDateString("sv-SE");
+}
+
+/**
+ * Jämför ny backend-state mot en sparad snapshot och returnerar nya notiser
+ * samt en uppdaterad snapshot. Ren funktion — ingen I/O.
+ *
+ * Snapshot-format:
+ *   { utgifter: { [id]: { beskrivning, belopp } }, deltagare: string[] }
+ *
+ * Returnerar:
+ *   { nyaNotiser: [{id, typ, text, tid}][], nySnapshot }
+ *
+ * @param {Object|null} snapshot     - föregående snapshot (null = första gången)
+ * @param {Array}       nuUtgifter   - aktuell lista från backend
+ * @param {Array}       nuDeltagare  - aktuell lista från backend [{id, namn}]
+ * @param {string}      migId        - min person-id (för att filtrera egna)
+ * @returns {{ nyaNotiser: Array, nySnapshot: Object }}
+ */
+function diffaNotiser(snapshot, nuUtgifter, nuDeltagare, migId) {
+  const tid = new Date().toISOString();
+  const nySnapshot = {
+    utgifter: Object.fromEntries(
+      (nuUtgifter || []).map(u => [u.id, { beskrivning: u.beskrivning, belopp: u.belopp }])
+    ),
+    deltagare: (nuDeltagare || []).map(d => d.id),
+  };
+
+  // Första gången — seed snapshot tyst, inga notiser.
+  if (!snapshot) return { nyaNotiser: [], nySnapshot };
+
+  const gamlaUtg = snapshot.utgifter || {};
+  const gamlaDeltagare = new Set(snapshot.deltagare || []);
+  const nyaNotiser = [];
+
+  // Ny deltagare
+  for (const d of (nuDeltagare || [])) {
+    if (!gamlaDeltagare.has(d.id) && d.id !== migId) {
+      nyaNotiser.push({ id: d.id + "_join_" + tid, typ: "join", text: d.namn + " gick med", tid });
+    }
+  }
+
+  // Ny eller ändrad utgift
+  for (const u of (nuUtgifter || [])) {
+    const gammal = gamlaUtg[u.id];
+    if (!gammal) {
+      // Ny — filtrera egna
+      if (u.lagd_till_av_id === migId) continue;
+      const laggareNamn = (nuDeltagare || []).find(d => d.id === u.lagd_till_av_id)?.namn || "Någon";
+      nyaNotiser.push({
+        id: "ny_" + u.id,
+        typ: "ny",
+        text: laggareNamn + " la till " + u.beskrivning + (u.belopp > 0 ? ", " + u.belopp.toFixed(2).replace(".", ",") + " kr" : ""),
+        tid,
+      });
+    } else if (gammal.beskrivning !== u.beskrivning || Math.abs(gammal.belopp - u.belopp) > 0.001) {
+      // Ändrad — filtrera egna
+      if (u.lagd_till_av_id === migId) continue;
+      const laggareNamn = (nuDeltagare || []).find(d => d.id === u.lagd_till_av_id)?.namn || "Någon";
+      nyaNotiser.push({
+        id: "andrad_" + u.id + "_" + tid,
+        typ: "andrad",
+        text: laggareNamn + " ändrade " + u.beskrivning,
+        tid,
+      });
+    }
+  }
+
+  // Raderad utgift
+  const nuIds = new Set((nuUtgifter || []).map(u => u.id));
+  for (const [id, gammal] of Object.entries(gamlaUtg)) {
+    if (!nuIds.has(id)) {
+      nyaNotiser.push({
+        id: "raderad_" + id + "_" + tid,
+        typ: "raderad",
+        text: gammal.beskrivning + " togs bort",
+        tid,
+      });
+    }
+  }
+
+  return { nyaNotiser, nySnapshot };
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
     raknaDel,
@@ -356,5 +457,7 @@ if (typeof module !== "undefined") {
     gruppFulltReglerat,
     debitorArkiverad,
     minRegleringKlar,
+    relativTid,
+    diffaNotiser,
   };
 }
