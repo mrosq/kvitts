@@ -721,6 +721,22 @@
 
 </div>
 
+<!-- GÅ MED I GRUPP MODAL -->
+<div class="modal-overlay" id="ga-med-modal" onclick="if(event.target===this)stangModal('ga-med-modal')">
+  <div class="modal">
+    <h2>Gå med i grupp</h2>
+    <p class="modal-sub">Klistra in grupp-länken eller skriv in grupp-id:t direkt.</p>
+    <input class="setup-input" id="ga-med-input" type="text" placeholder="Länk eller grupp-id…"
+      oninput="uppdateraGaMedKnapp()"
+      onkeydown="if(event.key==='Enter' && !document.getElementById('btn-ga-med').disabled) bekraftaGaMed()"/>
+    <div id="ga-med-fel" style="display:none; font-size:0.82rem; color:var(--accent); margin-top:0.4rem;"></div>
+    <div class="modal-knappar" style="margin-top:1rem;">
+      <button class="btn-avbryt" onclick="stangModal('ga-med-modal')">Avbryt</button>
+      <button class="btn-bekrafta" id="btn-ga-med" onclick="bekraftaGaMed()" disabled>Gå med →</button>
+    </div>
+  </div>
+</div>
+
 <!-- MENY MODAL -->
 <div class="modal-overlay" id="meny-modal" onclick="stangMenyVidKlickUtanfor(event)">
   <div class="modal">
@@ -730,6 +746,7 @@
       <div class="sessions-rubrik">Pågående</div>
       <div class="sessions-lista" id="sessions-pagaende"></div>
       <button class="sessions-ny-rad" onclick="skapaGruppFranMeny()">＋ Skapa ny grupp</button>
+      <button class="sessions-ny-rad" onclick="visaGaMedModal()">＋ Gå med i grupp</button>
       <button class="sessions-ny-rad" onclick="visaNySessionForm()">＋ Ny lokal session</button>
     </div>
 

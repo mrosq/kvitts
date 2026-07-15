@@ -1633,7 +1633,43 @@ function vaxlaTillSessionFranMeny(id) {
 }
 
 // NY SESSION-FORM
-function skapaGruppFranMeny() {
+function visaGaMedModal() {
+  stangModal("meny-modal");
+  document.getElementById("ga-med-input").value = "";
+  document.getElementById("ga-med-fel").style.display = "none";
+  document.getElementById("btn-ga-med").disabled = true;
+  document.getElementById("ga-med-modal").classList.add("visa");
+  setTimeout(() => document.getElementById("ga-med-input").focus(), 100);
+}
+
+function parsaGruppInput(text) {
+  const s = (text || "").trim();
+  if (!s) return null;
+  // Hel URL
+  try {
+    const fraUrl = parseGruppSokvag(new URL(s).pathname);
+    if (fraUrl) return fraUrl;
+  } catch (_) {}
+  // Sökväg /g/<id>
+  const fraSokvag = parseGruppSokvag(s);
+  if (fraSokvag) return fraSokvag;
+  // Rent id (4–10 alfanumeriska)
+  if (/^[A-Za-z0-9]{4,10}$/.test(s)) return s.toUpperCase();
+  return null;
+}
+
+function uppdateraGaMedKnapp() {
+  const id = parsaGruppInput(document.getElementById("ga-med-input").value);
+  document.getElementById("btn-ga-med").disabled = !id;
+  document.getElementById("ga-med-fel").style.display = "none";
+}
+
+async function bekraftaGaMed() {
+  const gruppId = parsaGruppInput(document.getElementById("ga-med-input").value);
+  if (!gruppId) return;
+  stangModal("ga-med-modal");
+  await startaJoinFlode(gruppId);
+}
   stangModal("meny-modal");
   // Nollställ ev. kvarhängande skapa-grupp-state så en ny grupp skapas rent.
   _gruppSkapat = null;
