@@ -474,7 +474,7 @@ function visaApp() {
 
 const ONBOARDING_STEG = [
   { valjare: "#topbar-meny", text: "Här hittar du menyn: byt grupp, reglera skulder, installera appen." },
-  { valjare: "#saldo-kort", text: "Saldot visar vem som är skyldig vem just nu." },
+  { valjare: "#saldo-kort", text: "Saldot visar vem som är skyldig vem just nu. Klicka för detaljer." },
   { valjare: "#ny-utgift-kort", text: "Lägg till en utgift här — välj vem som betalade och hur ni delar den." },
   { valjare: "#split-knapp", text: "Delar ni inte exakt lika? Fördela beloppet själva här." },
   { valjare: "#historik-lista", text: "Alla utgifter hamnar i historiken. Klicka på en för att ändra eller ta bort den." },
@@ -516,10 +516,6 @@ function renderOnboardingSteg(steg, index) {
   const overlay = document.createElement("div");
   overlay.className = "onboarding-overlay";
   overlay.id = "onboarding-overlay";
-  overlay.onclick = (e) => {
-    if (e.target.closest(".onboarding-hoppa")) stangOnboarding();
-    else visaOnboardingSteg(onboardingIndex + 1);
-  };
 
   const spotlight = document.createElement("div");
   spotlight.className = "onboarding-spotlight";
@@ -536,9 +532,9 @@ function renderOnboardingSteg(steg, index) {
     '<div class="onboarding-steg-text">' + (index + 1) + " av " + ONBOARDING_STEG.length + "</div>" +
     "<div>" + esc(steg.text) + "</div>" +
     '<div class="onboarding-knappar">' +
-    '<button class="onboarding-hoppa">Hoppa över</button>' +
-    '<button class="onboarding-nasta">' + (index === ONBOARDING_STEG.length - 1 ? "Klar" : "Nästa →") + "</button>" +
+    '<button class="onboarding-nasta">' + (index === ONBOARDING_STEG.length - 1 ? "Klar" : "Fortsätt →") + "</button>" +
     "</div>";
+  tooltip.querySelector(".onboarding-nasta").onclick = () => visaOnboardingSteg(onboardingIndex + 1);
   overlay.appendChild(tooltip);
   document.body.appendChild(overlay);
 

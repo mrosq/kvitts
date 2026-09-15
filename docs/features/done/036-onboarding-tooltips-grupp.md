@@ -72,15 +72,21 @@ hjälptexten (numrerad badge + pratbubbla), men riktigt i produktions-CSS:
 
 ## När levererad
 
-Byggt enligt spec, utan avvikelser:
+Byggt enligt spec, med en avvikelse efter uppföljande feedback:
 
 - `ONBOARDING_STEG` i `app.js` (5 steg), `startaOnboardingOmForsta()` anropas
   sist i `visaApp()` för `kind === "grupp"`.
 - Overlay/spotlight/tooltip byggs dynamiskt med `document.createElement`
   (ingen ny markup i `index.html`, bara CSS: `.onboarding-*`).
 - Osynliga mål-element hoppas tyst över (`onboardingElementArSynligt`).
+- **Avvikelse:** "Hoppa över"-länken togs bort och bakgrunds-klick stänger
+  inte längre sekvensen — användaren måste aktivt klicka knappen
+  ("Fortsätt →" / "Klar" på sista steget) för varje tooltip. Ingen väg att
+  avbryta i förtid.
+- Saldo-steget (`#saldo-kort`) fick tillägget "Klicka för detaljer." i texten.
 - Verifierat manuellt via agent-browser: alla 5 steg positionerar korrekt,
-  "Hoppa över" avbryter direkt, "Klar" stänger och sätter
+  bakgrundsklick gör ingenting, "Klar" stänger och sätter
   `kvitts_onboarding_grupp_visad` så den inte visas igen. Lokalt läge
   triggar den aldrig.
-- `sw.js`: `CACHE_NAME` bumpad v21 → v22.
+- `sw.js`: `CACHE_NAME` bumpad v21 → v23 (v22 vid första leveransen, v23 vid
+  denna justering).
