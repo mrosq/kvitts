@@ -465,6 +465,101 @@ function visaApp() {
   // 029: uppdatera install-UI och visa ev. engångs-toast
   uppdateraInstallUI();
   kanskeVisaInstallToast();
+
+  // 036: onboarding-tooltips, bara första gången i gruppläge
+  if (s && s.kind === "grupp") startaOnboardingOmForsta();
+}
+
+// --- 036: Onboarding-tooltips (bara gruppläge) ---
+
+const ONBOARDING_STEG = [
+  { valjare: "#topbar-meny", text: "Här hittar du menyn: byt grupp, reglera skulder, installera appen." },
+  { valjare: "#saldo-kort", text: "Saldot visar vem som är skyldig vem just nu." },
+  { valjare: "#ny-utgift-kort", text: "Lägg till en utgift här — välj vem som betalade och hur ni delar den." },
+  { valjare: "#split-knapp", text: "Delar ni inte exakt lika? Fördela beloppet själva här." },
+  { valjare: "#historik-lista", text: "Alla utgifter hamnar i historiken. Klicka på en för att ändra eller ta bort den." },
+];
+
+let onboardingIndex = -1;
+
+function startaOnboardingOmForsta() {
+  if (localStorage.getItem("kvitts_onboarding_grupp_visad")) return;
+  localStorage.setItem("kvitts_onboarding_grupp_visad", "1");
+  onboardingIndex = -1;
+  visaOnboardingSteg(0);
+}
+
+function onboardingElementArSynligt(el) {
+  return !!el && !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+}
+
+function visaOnboardingSteg(index) {
+  while (index < ONBOARDING_STEG.length) {
+    const el = document.querySelector(ONBOARDING_STEG[index].valjare);
+    if (onboardingElementArSynligt(el)) break;
+    index++;
+  }
+  onboardingIndex = index;
+  if (index >= ONBOARDING_STEG.length) {
+    stangOnboarding();
+    return;
+  }
+  renderOnboardingSteg(ONBOARDING_STEG[index], index);
+}
+
+function renderOnboardingSteg(steg, index) {
+  stangOnboarding();
+
+  const el = document.querySelector(steg.valjare);
+  const r = el.getBoundingClientRect();
+
+  const overlay = document.createElement("div");
+  overlay.className = "onboarding-overlay";
+  overlay.id = "onboarding-overlay";
+  overlay.onclick = (e) => {
+    if (e.target.closest(".onboarding-hoppa")) stangOnboarding();
+    else visaOnboardingSteg(onboardingIndex + 1);
+  };
+
+  const spotlight = document.createElement("div");
+  spotlight.className = "onboarding-spotlight";
+  const padding = 6;
+  spotlight.style.top = (r.top - padding) + "px";
+  spotlight.style.left = (r.left - padding) + "px";
+  spotlight.style.width = (r.width + padding * 2) + "px";
+  spotlight.style.height = (r.height + padding * 2) + "px";
+  overlay.appendChild(spotlight);
+
+  const tooltip = document.createElement("div");
+  tooltip.className = "onboarding-tooltip";
+  tooltip.innerHTML =
+    '<div class="onboarding-steg-text">' + (index + 1) + " av " + ONBOARDING_STEG.length + "</div>" +
+    "<div>" + esc(steg.text) + "</div>" +
+    '<div class="onboarding-knappar">' +
+    '<button class="onboarding-hoppa">Hoppa över</button>' +
+    '<button class="onboarding-nasta">' + (index === ONBOARDING_STEG.length - 1 ? "Klar" : "Nästa →") + "</button>" +
+    "</div>";
+  overlay.appendChild(tooltip);
+  document.body.appendChild(overlay);
+
+  // Positionera under målelementet om det får plats, annars ovanför.
+  const tooltipHojd = tooltip.offsetHeight;
+  const gutter = 16;
+  let top = r.bottom + padding + 10;
+  if (top + tooltipHojd > window.innerHeight - gutter) {
+    top = r.top - padding - 10 - tooltipHojd;
+  }
+  top = Math.max(gutter, Math.min(top, window.innerHeight - tooltipHojd - gutter));
+
+  const tooltipBredd = tooltip.offsetWidth;
+  let left = r.left;
+  left = Math.max(gutter, Math.min(left, window.innerWidth - tooltipBredd - gutter));
+  tooltip.style.top = top + "px";
+  tooltip.style.left = left + "px";
+}
+
+function stangOnboarding() {
+  document.getElementById("onboarding-overlay")?.remove();
 }
 
 function populeraBetalarDropdowns() {
