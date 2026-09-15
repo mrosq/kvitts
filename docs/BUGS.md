@@ -5,32 +5,40 @@ kan promotas till en feature-spec i `docs/features/`.
 
 ---
 
-## BUG-002: Saldo-kortet visar kvarstående skuld efter att sessionen markerats som reglerad
+## BUG-002: Saldo-kortet visar historiskt saldo efter att sessionen reglerats
 
 **Allvarlighet:** Medium
-**Område:** Rum / saldo-vy (004c)
+**Område:** Reglering / saldo-vy
 
 **Beskrivning:**
-När en deltagare som är skyldig pengar väljer "✓ Markera som reglerat" och
-bekräftar, växlar sessionen till historik-läge och bannern "✓ Denna session
-är reglerad och visas som historik" visas. Däremot fortsätter saldo-kortet
-att visa **"DU ÄR SKYLDIG 50,00 kr"** med samma framtoning som en aktiv
-skuld. Det är förvirrande direkt under en banner som signalerar att allt är
-klart — användaren kan tro att markeringen inte slog igenom.
+Efter feature 017 gäller detta främst **efter att ett rum autoarkiverats via
+gemensam reglering**: den som ska få pengar bekräftar med "Reglerat", och när
+alla rader som rör en deltagare är kvitterade markeras deltagarens lokala vy som
+`reglerad`. Bannern "✓ Denna session är reglerad och visas som historik" visas,
+men saldo-kortet räknar fortfarande på originalutgifterna och kan visa t.ex.
+**"DU ÄR SKYLDIG 600,00 kr"** eller **"DU SKALL FÅ 600,00 kr"** med samma
+framtoning som en aktiv skuld/fordran.
+
+Det gamla reprot där en debitor själv öppnar "✓ Markera som reglerat" i ett rum
+är inte längre korrekt efter 017: i grupp-läge får debitor bara statusen
+"Väntar på bekräftelse…"; bara kreditorn kan kvittera. Motsvarande problem kan
+fortfarande finnas i lokala sessioner via den manuella `reglera()`-vägen.
 
 **Förväntad beteende:**
-I reglerat läge bör saldo-kortet antingen visa "Reglerat" / "Jämnt",
-visuellt nedtonas, eller ersättas med en sammanfattning typ
-"Slutsaldo: 50 kr betalt till Alice".
+I reglerat läge bör saldo-kortet inte se ut som en aktiv skuld. Det bör
+antingen visa "Reglerat" / "Historik", nedtonas, eller ersättas med en
+sammanfattning som tydligt beskriver slutsaldot som historisk information.
 
 **Repro:**
-1. Skapa rum, gå med som två personer (Alice + Bob).
-2. Alice lägger till en utgift som ger Bob en skuld (t.ex. 300 kr mat, delat lika).
-3. Bob öppnar `⚙` → "✓ Markera som reglerat" → bekräftar i modalen.
-4. Observera: bannern säger "reglerad", men saldo-kortet visar fortfarande "DU ÄR SKYLDIG 50,00 kr".
+1. Skapa grupp, gå med som två personer (Alice + Bob).
+2. Alice lägger till en utgift som ger Bob en skuld.
+3. Alice öppnar regleringsflödet och trycker "Reglerat" för Bob.
+4. Bobs vy autoarkiveras efter refresh/polling.
+5. Observera: bannern säger "reglerad", men saldo-kortet kan fortfarande visa
+   skulden/fordran som en aktiv status.
 
-**Hittad:** dogfood-session 2026-05-16, se
-`agent-browser/screenshots/09-reglera-confirm.png` och `10-bob-after-reglera.png`.
+**Uppdaterad:** 2026-07-17 efter genomgång av 017-flödet. Se även
+[033 – Reglera-flöde: analys och polering](features/033-reglera-flode-analys.md).
 
 ---
 
