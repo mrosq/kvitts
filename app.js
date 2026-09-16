@@ -1625,7 +1625,7 @@ function startaPolling() {
   stoppPolling();
   _pollingInterval = setInterval(() => {
     if (!document.hidden) refreshDeltagareOchUtgifter();
-  }, 15000);
+  }, 60000);
 }
 
 function stoppPolling() {
