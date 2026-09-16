@@ -35,6 +35,7 @@
     font-size: 0.85rem; font-family: 'DM Sans', sans-serif;
   }
   .deltagar-chip.mig { border-color: var(--accent); color: var(--accent); }
+  .deltagar-chip.lamnad { opacity: 0.55; }
 
   .intro-skarm {
     display: flex; flex-direction: column; align-items: center;
@@ -932,7 +933,8 @@
 <div class="modal-overlay" id="deltagare-modal" onclick="stangDeltagareModalVidKlick(event)">
   <div class="modal">
     <h2 id="deltagare-modal-rubrik">Deltagare</h2>
-    <div id="deltagare-chips" style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1.2rem;"></div>
+    <div id="deltagare-chips" style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.6rem;"></div>
+    <div id="deltagare-modal-mig-knapp" style="margin-bottom:1.2rem;"></div>
     <p style="font-size:0.8rem; color:var(--muted); margin-bottom:0.4rem;">Dela länken för att bjuda in:</p>
     <div style="display:flex; align-items:center; gap:0.4rem; margin-bottom:1.2rem;">
       <span id="deltagare-modal-lank" style="font-size:0.75rem; color:var(--muted); word-break:break-all; flex:1;"></span>
@@ -944,6 +946,18 @@
     </div>
     <div class="modal-knappar">
       <button class="btn-avbryt" style="flex:none; width:100%;" onclick="stangModal('deltagare-modal')">Stäng</button>
+    </div>
+  </div>
+</div>
+
+<!-- LÄMNA GRUPPEN BEKRÄFTELSE (037) -->
+<div class="modal-overlay" id="lamna-grupp-modal">
+  <div class="modal">
+    <h2>Lämna gruppen</h2>
+    <p>Du slutar vara ett förvalt/valbart alternativ i nya utgifter tills du går med i gruppen igen. Utgifter som redan finns påverkas inte.</p>
+    <div class="modal-knappar">
+      <button class="btn-avbryt" onclick="stangModal('lamna-grupp-modal')">Avbryt</button>
+      <button class="btn-bekrafta" style="background:var(--accent)" onclick="bekraftaLamnaGruppen()">Lämna gruppen</button>
     </div>
   </div>
 </div>

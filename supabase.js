@@ -108,6 +108,14 @@
     if (error) throw error;
   }
 
+  // 037: soft-leave — medlemmen finns kvar men exkluderas som default/valbar
+  // i framtida utgifter tills hen själv går med igen.
+  async function uppdateraMedlemLamnad(personId, lamnad) {
+    const c = client();
+    const { error } = await c.from("members").update({ lamnad }).eq("id", personId);
+    if (error) throw error;
+  }
+
   // ── Mappning DB → klient ────────────────────────────────────────────────
   // DB: { id(uuid), room_id, beskrivning, belopp, betalare_id(uuid),
   //       fordelning(jsonb), datum(date), lagd_till_av_id(uuid), skapad }
@@ -248,7 +256,7 @@
   window.KvittsSupabase = {
     skapaGrupp, haGrupp, gaMedIGrupp, hamtaDeltagare,
     hamtaUtgifter, laggTillUtgiftGrupp, uppdateraUtgift, raderaUtgiftGrupp,
-    sokMedIdentitetHash, hamtaMedToken, uppdateraMemberIdentitet,
+    sokMedIdentitetHash, hamtaMedToken, uppdateraMemberIdentitet, uppdateraMedlemLamnad,
     hamtaKvittenser, kvitteraOverforing, avKvitteraOverforing,
   };
 })();

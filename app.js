@@ -559,15 +559,17 @@ function stangOnboarding() {
 }
 
 function populeraBetalarDropdowns() {
+  const valbara = personer.filter(p => !p.lamnad);
   ["betalare", "edit-betalare"].forEach(id => {
     const sel = document.getElementById(id);
-    sel.innerHTML = personer.map(p => `<option value="${p.id}">${esc(p.namn)}</option>`).join("");
+    sel.innerHTML = valbara.map(p => `<option value="${p.id}">${esc(p.namn)}</option>`).join("");
     sel.value = migId;
   });
 }
 
+// 037: lämnade medlemmar räknas inte som default/valbara i nya utgifter.
 function deltagareIds() {
-  return personer.map(p => p.id);
+  return personer.filter(p => !p.lamnad).map(p => p.id);
 }
 
 function uppdateraLaggTillKnapp() {
@@ -594,7 +596,7 @@ function oppnaSplitModal(kontext) {
 
 function renderaCirklar() {
   const container = document.getElementById("split-cirklar");
-  container.innerHTML = personer.map(p => {
+  container.innerHTML = personer.filter(p => !p.lamnad).map(p => {
     const aktiv = splitModalTempInkluderade.includes(p.id);
     return `
       <div class="person-cirkel-wrapper">
@@ -682,7 +684,8 @@ function uppdateraSplitEgnaInfo() {
 }
 
 function sparaDelmangd() {
-  const allaAr = splitModalTempInkluderade.length === personer.length;
+  const allaAr = splitModalTempInkluderade.length === deltagareIds().length &&
+    deltagareIds().every(id => splitModalTempInkluderade.includes(id));
   if (splitModalKontext === "add") {
     splitTyp = allaAr ? "jamnt" : "delmangd";
     splitInkluderade = allaAr ? [] : [...splitModalTempInkluderade];
@@ -712,7 +715,8 @@ function sparaEgnaFranModal() {
       "⚠️ Egna belopp (" + summa.toFixed(2).replace(".",",") + " kr) överstiger totalt (" + bel.toFixed(2).replace(".",",") + " kr)";
     return;
   }
-  const allaAr = splitModalTempInkluderade.length === personer.length;
+  const allaAr = splitModalTempInkluderade.length === deltagareIds().length &&
+    deltagareIds().every(id => splitModalTempInkluderade.includes(id));
   const harEgna = summa > 0.001;
   let nyTyp, nyInkl, nyEgna;
   if (!harEgna) {
@@ -843,7 +847,23 @@ function oppnaDetaljer(id) {
   editId = id;
   document.getElementById("edit-beskrivning").value = u.beskrivning || "";
   document.getElementById("edit-belopp").value = u.belopp || "";
-  document.getElementById("edit-betalare").value = u.betalare_id;
+  // 037: betalaren kan ha lämnat gruppen sedan utgiften lades till — dropdownen
+  // innehåller bara aktiva medlemmar, så injicera en tillfällig option annars
+  // tappas den historiska betalaren tyst om utgiften sparas om.
+  const editBetalareSel = document.getElementById("edit-betalare");
+  editBetalareSel.querySelectorAll("option[data-lamnad-injicerad]").forEach(o => o.remove());
+  editBetalareSel.value = u.betalare_id;
+  if (editBetalareSel.value !== u.betalare_id) {
+    const lamnadBetalare = personer.find(p => p.id === u.betalare_id);
+    if (lamnadBetalare) {
+      const opt = document.createElement("option");
+      opt.value = lamnadBetalare.id;
+      opt.textContent = lamnadBetalare.namn + " (lämnat)";
+      opt.dataset.lamnadInjicerad = "1";
+      editBetalareSel.appendChild(opt);
+      editBetalareSel.value = lamnadBetalare.id;
+    }
+  }
 
   valtEditDatum = parsaDatum(u.datum);
   uppdateraEditDatumChip();
@@ -1460,7 +1480,7 @@ async function refreshDeltagareOchUtgifter(forcera = false) {
     const data = laddaSessionsData(s.id);
     if (data) {
       data.utgifter = utgifter;
-      data.personer = deltagare.map(m => ({ id: m.id, namn: m.namn }));
+      data.personer = deltagare.map(m => ({ id: m.id, namn: m.namn, lamnad: !!m.lamnad }));
       data.migId = grupp.personId;
       personer = data.personer;
       migId = grupp.personId;
@@ -1638,8 +1658,17 @@ function visaDeltagare() {
   const container = document.getElementById("deltagare-chips");
   container.innerHTML = personer.map(p => {
     const arMig = p.id === migId;
-    return `<span class="deltagar-chip${arMig ? " mig" : ""}">${esc(p.namn)}${arMig ? " (du)" : ""}</span>`;
+    const lamnadTxt = p.lamnad ? (arMig ? " (har lämnat)" : " (lämnat)") : "";
+    return `<span class="deltagar-chip${arMig ? " mig" : ""}${p.lamnad ? " lamnad" : ""}">${esc(p.namn)}${arMig ? " (du)" : ""}${lamnadTxt}</span>`;
   }).join("");
+  // 037: lämna/gå med igen — bara för sig själv, ingen kan ändra åt någon annan.
+  const migKnappWrap = document.getElementById("deltagare-modal-mig-knapp");
+  const migPerson = personer.find(p => p.id === migId);
+  if (migKnappWrap && migPerson) {
+    migKnappWrap.innerHTML = migPerson.lamnad
+      ? `<button class="btn-lank" onclick="gaMedIGruppenIgen()">Gå med i gruppen igen</button>`
+      : `<button class="btn-lank" onclick="oppnaLamnaGruppenBekraftelse()">Lämna gruppen</button>`;
+  }
   const grupp = aktivGruppData();
   const lankEl = document.getElementById("deltagare-modal-lank");
   if (grupp && lankEl) {
@@ -1650,6 +1679,37 @@ function visaDeltagare() {
 
 function stangDeltagareModalVidKlick(event) {
   if (event.target === document.getElementById("deltagare-modal")) stangModal("deltagare-modal");
+}
+
+// 037: lämna gruppen (soft) — bekräftelse krävs, återgång är alltid en klick bort.
+function oppnaLamnaGruppenBekraftelse() {
+  document.getElementById("lamna-grupp-modal").classList.add("visa");
+}
+
+async function bekraftaLamnaGruppen() {
+  stangModal("lamna-grupp-modal");
+  await sattLamnadStatus(true);
+}
+
+async function gaMedIGruppenIgen() {
+  await sattLamnadStatus(false);
+}
+
+async function sattLamnadStatus(lamnad) {
+  const grupp = aktivGruppData();
+  if (!grupp) return;
+  try {
+    await KvittsSupabase.uppdateraMedlemLamnad(grupp.personId, lamnad);
+  } catch (e) {
+    console.error("Kunde inte uppdatera lämnad-status:", e);
+    alert("Gick inte att spara ändringen just nu — kontrollera anslutningen och försök igen.");
+    return;
+  }
+  const migPerson = personer.find(p => p.id === migId);
+  if (migPerson) migPerson.lamnad = lamnad;
+  sparaAktivSessionsData();
+  populeraBetalarDropdowns();
+  visaDeltagare();
 }
 
 function visaMeny() {
