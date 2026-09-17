@@ -15,3 +15,4 @@ Mall finns i [features/_template.md](features/_template.md).
 - [x] Polling-intervall: sänk från 15s till 60s när appen är i produktion — 15s är för testkörning
 - [ ] Direktlänk `/r/:id` fungerar inte lokalt (python http.server kan inte rewrite-regeln) — fungerar på Vercel. Ev. byta till ett litet dev-server-script som stödjer rewrites, eller dokumentera workaround
 - [ ] Validering på e-postfälten vid inmatning och återanslutning (018b) — idag saknas validering helt, man kan skriva vad som helst. Kolla giltigt e-postformat innan man går vidare
+- [ ] Valutaväljare + ev. inbyggd konvertering — just nu hårdkodat "EUR" som text överallt (quick fix, se historik), ingen faktisk valutalogik

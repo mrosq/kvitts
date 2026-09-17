@@ -647,7 +647,7 @@ function visaSplitSteg2() {
     const val = splitModalTempEgna[id] || "";
     return `
       <div class="split-person">
-        <label>${esc(p?.namn || id)}s egna (kr)</label>
+        <label>${esc(p?.namn || id)}s egna (EUR)</label>
         <input type="number" id="split-egna-${id}" placeholder="0" min="0" step="0.01"
           value="${val}" oninput="uppdateraSplitEgnaInfo()"/>
       </div>`;
@@ -712,7 +712,7 @@ function sparaEgnaFranModal() {
   }
   if (bel > 0 && summa > bel + 0.001) {
     document.getElementById("split-egna-info").textContent =
-      "⚠️ Egna belopp (" + summa.toFixed(2).replace(".",",") + " kr) överstiger totalt (" + bel.toFixed(2).replace(".",",") + " kr)";
+      "⚠️ Egna belopp (" + summa.toFixed(2).replace(".",",") + " EUR) överstiger totalt (" + bel.toFixed(2).replace(".",",") + " EUR)";
     return;
   }
   const allaAr = splitModalTempInkluderade.length === deltagareIds().length &&
@@ -898,7 +898,7 @@ function renderaFordelningslista(u) {
     const nollKlass = andel < 0.001 ? " noll" : "";
     const taggKlass = u.betalare_id === migId ? "p1" : "p2";
     const tagg = p.id === u.betalare_id ? `<span class="fordelning-betalt-tagg ${taggKlass}">betalade</span>` : "";
-    const beloppTxt = andel.toFixed(2).replace(".",",") + " kr";
+    const beloppTxt = andel.toFixed(2).replace(".",",") + " EUR";
     return `
       <div class="fordelning-rad${nollKlass}">
         <span class="fordelning-namn">${esc(p.namn)}:${tagg}</span>
@@ -981,7 +981,7 @@ function uppdatera() {
   const belEl = document.getElementById("saldo-belopp");
   const txtEl = document.getElementById("saldo-text");
 
-  const totaltTxt = totalt > 0 ? "Totalt " + totalt.toFixed(2).replace(".",",") + " kr i utgifter" : "";
+  const totaltTxt = totalt > 0 ? "Totalt " + totalt.toFixed(2).replace(".",",") + " EUR i utgifter" : "";
   if (Math.abs(saldoMig) < 0.01) {
     kortEl.className = "saldo-kort noll";
     labelEl.textContent = "Du är KVITT";
@@ -990,12 +990,12 @@ function uppdatera() {
   } else if (saldoMig > 0) {
     kortEl.className = "saldo-kort";
     labelEl.textContent = "Du skall få";
-    belEl.textContent = Math.abs(saldoMig).toFixed(2).replace(".",",") + " kr";
+    belEl.textContent = Math.abs(saldoMig).toFixed(2).replace(".",",") + " EUR";
     txtEl.textContent = totaltTxt;
   } else {
     kortEl.className = "saldo-kort";
     labelEl.textContent = "Du är skyldig";
-    belEl.textContent = Math.abs(saldoMig).toFixed(2).replace(".",",") + " kr";
+    belEl.textContent = Math.abs(saldoMig).toFixed(2).replace(".",",") + " EUR";
     txtEl.textContent = totaltTxt;
   }
 
@@ -1037,7 +1037,7 @@ function uppdatera() {
       const betalareNamn = betalare?.namn || u.betalare_id;
       const badgeKlass = u.betalare_id === migId ? "p1" : "p2";
       const harBelopp = u.belopp > 0;
-      const beloppText = harBelopp ? u.belopp.toFixed(2).replace(".", ",") + " kr" : "– kr";
+      const beloppText = harBelopp ? u.belopp.toFixed(2).replace(".", ",") + " EUR" : "– EUR";
       return `
         <div class="utgift-rad" onclick="oppnaDetaljer('${u.id}')">
           <div class="utgift-info">
@@ -1096,9 +1096,9 @@ function visaSaldoDetalj() {
     if (Math.abs(netto) < 0.01) {
       return `<div class="saldo-detalj-rad noll"><strong>${namn}</strong>: Du är KVITT</div>`;
     } else if (netto > 0) {
-      return `<div class="saldo-detalj-rad"><strong>${namn}</strong> skall betala dig <strong>${netto.toFixed(2).replace(".",",")} kr</strong></div>`;
+      return `<div class="saldo-detalj-rad"><strong>${namn}</strong> skall betala dig <strong>${netto.toFixed(2).replace(".",",")} EUR</strong></div>`;
     } else {
-      return `<div class="saldo-detalj-rad">Du är skyldig <strong>${namn}</strong> <strong>${Math.abs(netto).toFixed(2).replace(".",",")} kr</strong></div>`;
+      return `<div class="saldo-detalj-rad">Du är skyldig <strong>${namn}</strong> <strong>${Math.abs(netto).toFixed(2).replace(".",",")} EUR</strong></div>`;
     }
   }).join("");
 
@@ -1111,7 +1111,7 @@ function visaSaldoDetalj() {
         const betalarNamn = esc(personer.find(x => x.id === annarsId)?.namn || annarsId);
         const mottagarNamn = esc(p.namn);
         const belopp = netto.toFixed(2).replace(".",",");
-        ovrigaRader.push(`<div class="saldo-detalj-rad"><strong>${betalarNamn}</strong> skall betala <strong>${mottagarNamn}</strong> <strong>${belopp} kr</strong></div>`);
+        ovrigaRader.push(`<div class="saldo-detalj-rad"><strong>${betalarNamn}</strong> skall betala <strong>${mottagarNamn}</strong> <strong>${belopp} EUR</strong></div>`);
       }
     }
   }
@@ -1176,7 +1176,7 @@ function _renderaRegleraLista() {
       const franNamn = fran === migId ? "Du" : `<strong>${esc(personer.find(p => p.id === fran)?.namn || fran)}</strong>`;
       const tillNamn = till === migId ? "dig" : `<strong>${esc(personer.find(p => p.id === till)?.namn || till)}</strong>`;
       const beloppStr = belopp.toFixed(2).replace(".", ",");
-      return `${franNamn} betalar ${tillNamn} <strong>${beloppStr} kr</strong>`;
+      return `${franNamn} betalar ${tillNamn} <strong>${beloppStr} EUR</strong>`;
     });
   } else {
     rader = raknaParSaldon(utgifter, migId, personer)
@@ -1185,8 +1185,8 @@ function _renderaRegleraLista() {
         const namn = esc(personer.find(p => p.id === id)?.namn || id);
         const beloppStr = Math.abs(netto).toFixed(2).replace(".", ",");
         return netto > 0
-          ? `<strong>${namn}</strong> betalar dig <strong>${beloppStr} kr</strong>`
-          : `Du betalar <strong>${namn}</strong> <strong>${beloppStr} kr</strong>`;
+          ? `<strong>${namn}</strong> betalar dig <strong>${beloppStr} EUR</strong>`
+          : `Du betalar <strong>${namn}</strong> <strong>${beloppStr} EUR</strong>`;
       });
   }
 
@@ -1214,7 +1214,7 @@ function _renderaRegleraGrupp() {
     const beloppStr = rad.belopp.toFixed(2).replace(".", ",");
     if (rad.till === migId) {
       // Jag är kreditor: knapp för att kvittera/ångra.
-      const text = `<strong>${namn(rad.fran)}</strong> betalar dig <strong>${beloppStr} kr</strong>`;
+      const text = `<strong>${namn(rad.fran)}</strong> betalar dig <strong>${beloppStr} EUR</strong>`;
       if (rad.kvitterad) {
         return `<div class="reglera-rad">
           <span>${text}</span>
@@ -1229,14 +1229,14 @@ function _renderaRegleraGrupp() {
     }
     if (rad.fran === migId) {
       // Jag är debitor: statusindikator, ingen knapp.
-      const text = `Du betalar <strong>${namn(rad.till)}</strong> <strong>${beloppStr} kr</strong>`;
+      const text = `Du betalar <strong>${namn(rad.till)}</strong> <strong>${beloppStr} EUR</strong>`;
       const status = rad.kvitterad
         ? `<span class="reglera-status klar">✓ Reglerat</span>`
         : `<span class="reglera-status vantar">Väntar på bekräftelse…</span>`;
       return `<div class="reglera-rad"><span>${text}</span>${status}</div>`;
     }
     // Överföring mellan två andra: visas som kontext, ingen åtgärd.
-    const text = `<strong>${namn(rad.fran)}</strong> betalar <strong>${namn(rad.till)}</strong> <strong>${beloppStr} kr</strong>`;
+    const text = `<strong>${namn(rad.fran)}</strong> betalar <strong>${namn(rad.till)}</strong> <strong>${beloppStr} EUR</strong>`;
     const status = rad.kvitterad
       ? `<span class="reglera-status klar">✓ Reglerat</span>`
       : `<span class="reglera-status vantar">Ej reglerat</span>`;

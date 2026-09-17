@@ -102,9 +102,9 @@ function egnaInfoText(belopp, egna = {}, deltagare = []) {
     return (
       "⚠️ Egna kostnader (" +
       summaEgna.toFixed(2).replace(".", ",") +
-      " kr) överstiger totalt (" +
+      " EUR) överstiger totalt (" +
       belopp.toFixed(2).replace(".", ",") +
-      " kr)"
+      " EUR)"
     );
   }
   if (kvar < 0.001) {
@@ -114,11 +114,11 @@ function egnaInfoText(belopp, egna = {}, deltagare = []) {
   return (
     "Delas: " +
     kvar.toFixed(2).replace(".", ",") +
-    " kr ÷ " +
+    " EUR ÷ " +
     n +
     " = " +
     delat.toFixed(2).replace(".", ",") +
-    " kr var"
+    " EUR var"
   );
 }
 
@@ -408,7 +408,7 @@ function diffaNotiser(snapshot, nuUtgifter, nuDeltagare, migId) {
       nyaNotiser.push({
         id: "ny_" + u.id,
         typ: "ny",
-        text: laggareNamn + " la till " + u.beskrivning + (u.belopp > 0 ? ", " + u.belopp.toFixed(2).replace(".", ",") + " kr" : ""),
+        text: laggareNamn + " la till " + u.beskrivning + (u.belopp > 0 ? ", " + u.belopp.toFixed(2).replace(".", ",") + " EUR" : ""),
         tid,
       });
     } else if (gammal.beskrivning !== u.beskrivning || Math.abs(gammal.belopp - u.belopp) > 0.001) {

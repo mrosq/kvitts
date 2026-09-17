@@ -711,13 +711,13 @@
 
   <div class="saldo-kort" id="saldo-kort" onclick="visaSaldoDetalj()">
     <div class="saldo-label" id="saldo-label">Aktuellt saldo</div>
-    <div class="saldo-belopp" id="saldo-belopp">0 kr</div>
+    <div class="saldo-belopp" id="saldo-belopp">0 EUR</div>
     <div class="saldo-text" id="saldo-text"></div>
   </div>
   <div class="sektion-rubrik" id="ny-utgift-rubrik">Ny utgift</div>
   <div class="kort" id="ny-utgift-kort">
     <div class="form-rad">
-      <input type="number" id="belopp" placeholder="Belopp (kr)" min="0" step="0.01" style="flex:1; min-width:0;" oninput="uppdateraLaggTillKnapp()" onkeydown="if(event.key==='Enter' && !document.getElementById('btn-lagg-till').disabled) laggTillUtgift()"/>
+      <input type="number" id="belopp" placeholder="Belopp (EUR)" min="0" step="0.01" style="flex:1; min-width:0;" oninput="uppdateraLaggTillKnapp()" onkeydown="if(event.key==='Enter' && !document.getElementById('btn-lagg-till').disabled) laggTillUtgift()"/>
       <select id="betalare" style="flex:1; min-width:0;"></select>
     </div>
     <div class="form-rad">
@@ -862,7 +862,7 @@
       <input type="text" id="edit-beskrivning" placeholder="Beskrivning" maxlength="60" style="flex:1; min-width:0;"/>
     </div>
     <div class="form-rad">
-      <input type="number" id="edit-belopp" placeholder="Belopp (kr)" min="0" step="0.01" style="flex:1; min-width:0;"/>
+      <input type="number" id="edit-belopp" placeholder="Belopp (EUR)" min="0" step="0.01" style="flex:1; min-width:0;"/>
       <select id="edit-betalare" style="flex:1; min-width:0;"></select>
     </div>
     <div class="split-rad">

@@ -41,7 +41,7 @@ Deployad på Vercel — varje push till `main` deployer automatiskt.
 {
   id: 1234567890,        // Date.now()
   beskrivning: "Mat",
-  belopp: 250,           // totalsumma i kr
+  belopp: 250,           // totalsumma i EUR
   betalare: "p1" | "p2", // p1 = person1, p2 = person2
   delP1: 125,            // person1:s andel av belopp
   delP2: 125,            // person2:s andel av belopp
