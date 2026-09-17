@@ -2487,9 +2487,27 @@ window.addEventListener("appinstalled", () => {
 // Bakom feature-check och endast över http(s) – från file:// registreras den inte.
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch((err) => {
+    navigator.serviceWorker.register("/sw.js").then((reg) => {
+      // iOS fryser hemskärms-appen vid återöppning istället för att ladda om
+      // den, så "load" (och SW-uppdateringskollen som hör dit) triggas aldrig
+      // igen av sig själv. Tvinga en koll varje gång appen blir synlig igen.
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") reg.update();
+      });
+    }).catch((err) => {
       console.warn("Service worker kunde inte registreras:", err);
     });
+  });
+
+  // När en ny SW tar över (skipWaiting + clients.claim i sw.js): ladda om en
+  // gång så sidan faktiskt hämtar nytt HTML/JS. Annars sitter en redan öppen
+  // (särskilt en frusen iOS-hemskärmsapp) kvar med gammal kod i minnet trots
+  // att cachen är uppdaterad.
+  let _swHarOmladdats = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (_swHarOmladdats) return;
+    _swHarOmladdats = true;
+    window.location.reload();
   });
 }
 
