@@ -1130,11 +1130,11 @@ function visaSaldoDetalj() {
   const toggleBtn = document.getElementById("saldo-detalj-toggle");
   lista.innerHTML = mittHtml + ovrigaRader.join("");
   lista.style.display = "none";
-  toggleBtn.style.display = lista.innerHTML ? "" : "none";
-  toggleBtn.textContent = "Detaljer…";
+  toggleBtn.setAttribute("aria-expanded", "false");
+  document.getElementById("saldo-detalj-detaljer-wrap").style.display = lista.innerHTML ? "" : "none";
 
   const visaMinimera = personer.length > 2 && minimeradeOverforingar(utgifter, personer).length > 0;
-  document.getElementById("saldo-detalj-minimera-wrap").style.display = visaMinimera ? "" : "none";
+  document.getElementById("saldo-detalj-minimera-wrap").style.display = visaMinimera ? "block" : "none";
 
   document.getElementById("saldo-detalj-modal").classList.add("visa");
 }
@@ -1143,8 +1143,8 @@ function vaxlaSaldoDetaljer() {
   const lista = document.getElementById("saldo-detalj-lista");
   const toggleBtn = document.getElementById("saldo-detalj-toggle");
   const dold = lista.style.display === "none";
-  lista.style.display = dold ? "" : "none";
-  toggleBtn.textContent = dold ? "Dölj detaljer" : "Detaljer…";
+  lista.style.display = dold ? "block" : "none";
+  toggleBtn.setAttribute("aria-expanded", dold ? "true" : "false");
 }
 
 function gaTillMinimera() {

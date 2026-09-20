@@ -97,12 +97,27 @@
   .saldo-detalj-rad { padding: 0.7rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; line-height: 1.5; }
   .saldo-detalj-rad:last-child { border-bottom: none; }
   .saldo-detalj-rad.noll { color: var(--muted); }
-  .saldo-detalj-sammanfattning {
-    background: var(--ink); color: #fff; border-radius: var(--radius);
-    padding: 1.2rem 1.4rem 1rem; margin-bottom: 1rem;
+  .saldo-detalj-sammanfattning { margin-bottom: 1rem; }
+  .saldo-detalj-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+  .saldo-detalj-belopp { font-family: 'DM Serif Display', serif; font-size: 1.8rem; margin: 0.2rem 0; color: var(--ink); }
+  .saldo-detalj-text { font-size: 0.78rem; color: var(--muted); margin-top: 0.3rem; }
+  .saldo-detalj-sammanfattning.noll .saldo-detalj-belopp { color: var(--green); }
+  .saldo-detalj-sammanfattning.historik .saldo-detalj-label,
+  .saldo-detalj-sammanfattning.historik .saldo-detalj-belopp { color: var(--muted); }
+
+  .saldo-detalj-detaljer { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+  .saldo-detalj-accordion {
+    display: flex; align-items: center; justify-content: space-between; width: 100%;
+    background: none; border: none; padding: 0.75rem 0; margin: 0;
+    font-family: 'DM Sans', sans-serif; font-size: 0.85rem; color: var(--ink); cursor: pointer; text-align: left;
   }
-  .saldo-detalj-sammanfattning.noll { background: var(--green); }
-  .saldo-detalj-sammanfattning.historik { background: var(--border); color: var(--ink); }
+  .saldo-detalj-chevron { color: var(--muted); font-size: 0.7rem; transition: transform 200ms ease; }
+  .saldo-detalj-accordion[aria-expanded="true"] .saldo-detalj-chevron { transform: rotate(180deg); }
+  .saldo-detalj-lista { display: none; padding-bottom: 0.3rem; }
+  .saldo-detalj-minimera {
+    display: none; text-align: center; border-top: 1px solid var(--border);
+    padding-top: 0.9rem; margin-bottom: 0.8rem;
+  }
 
   .btn-reglera {
     width: 100%; padding: 0.8rem; background: transparent; border: 2px solid var(--border);
@@ -829,16 +844,19 @@
 <div class="modal-overlay" id="saldo-detalj-modal">
   <div class="modal">
     <div class="saldo-detalj-sammanfattning" id="saldo-detalj-sammanfattning">
-      <div class="saldo-label" id="saldo-detalj-label"></div>
-      <div class="saldo-belopp" id="saldo-detalj-belopp"></div>
-      <div class="saldo-text" id="saldo-detalj-text"></div>
+      <div class="saldo-detalj-label" id="saldo-detalj-label"></div>
+      <div class="saldo-detalj-belopp" id="saldo-detalj-belopp"></div>
+      <div class="saldo-detalj-text" id="saldo-detalj-text"></div>
     </div>
-    <div style="margin-bottom:8px;">
-      <button class="btn-lank" id="saldo-detalj-toggle" onclick="vaxlaSaldoDetaljer()">Detaljer…</button>
+    <div class="saldo-detalj-detaljer" id="saldo-detalj-detaljer-wrap">
+      <button class="saldo-detalj-accordion" id="saldo-detalj-toggle" onclick="vaxlaSaldoDetaljer()" aria-expanded="false">
+        <span>Detaljer</span>
+        <span class="saldo-detalj-chevron" aria-hidden="true">⌄</span>
+      </button>
+      <div id="saldo-detalj-lista" class="saldo-detalj-lista"></div>
     </div>
-    <div id="saldo-detalj-lista" style="display:none; margin-bottom:8px;"></div>
-    <div id="saldo-detalj-minimera-wrap" style="display:none; margin-bottom:8px; text-align:center;">
-      <button class="btn-lank" onclick="gaTillMinimera()">Gå till skuldreglering →</button>
+    <div id="saldo-detalj-minimera-wrap" class="saldo-detalj-minimera">
+      <button class="btn-lank" onclick="gaTillMinimera()">Visa skuldreglering →</button>
     </div>
     <div class="modal-knappar">
       <button class="btn-avbryt" style="flex:none; width:100%;" onclick="stangModal('saldo-detalj-modal')">Stäng</button>
