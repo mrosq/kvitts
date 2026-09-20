@@ -96,9 +96,11 @@
   .saldo-detalj-rad { padding: 0.7rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; line-height: 1.5; }
   .saldo-detalj-rad:last-child { border-bottom: none; }
   .saldo-detalj-rad.noll { color: var(--muted); }
-  .saldo-detalj-sektion { margin-bottom: 1.2rem; }
-  .saldo-detalj-sektion:last-child { margin-bottom: 0; }
-  .saldo-detalj-sektion-rubrik { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.2rem; }
+  .saldo-detalj-sammanfattning {
+    background: var(--ink); color: #fff; border-radius: var(--radius);
+    padding: 1.2rem 1.4rem 1rem; margin-bottom: 1rem;
+  }
+  .saldo-detalj-sammanfattning.noll { background: var(--green); }
 
   .btn-reglera {
     width: 100%; padding: 0.8rem; background: transparent; border: 2px solid var(--border);
@@ -779,7 +781,7 @@
     </div>
 
     <div class="meny-lista" id="meny-aktiv-sektion">
-      <button class="meny-rad" id="meny-reglera-btn" onclick="visaRegleraFranMeny()">✓ Markera som reglerat</button>
+      <button class="meny-rad" id="meny-reglera-btn" onclick="visaRegleraFranMeny()">⚖️ Reglera skuld</button>
       <div id="meny-fil-rad" style="display:flex; gap:0.5rem;">
         <button class="meny-rad" style="flex:1" onclick="laddaFilFranMeny()">⬆ Ladda fil</button>
         <button class="meny-rad" id="meny-spara-btn" style="display:none; flex:1" onclick="sparaFilFranMeny()">⬇ Spara fil</button>
@@ -824,10 +826,17 @@
 <!-- SALDO DETALJ MODAL -->
 <div class="modal-overlay" id="saldo-detalj-modal">
   <div class="modal">
-    <h2>Saldo</h2>
-    <div id="saldo-detalj-lista"></div>
+    <div class="saldo-detalj-sammanfattning" id="saldo-detalj-sammanfattning">
+      <div class="saldo-label" id="saldo-detalj-label"></div>
+      <div class="saldo-belopp" id="saldo-detalj-belopp"></div>
+      <div class="saldo-text" id="saldo-detalj-text"></div>
+    </div>
+    <div style="margin-bottom:8px;">
+      <button class="btn-lank" id="saldo-detalj-toggle" onclick="vaxlaSaldoDetaljer()">Detaljer…</button>
+    </div>
+    <div id="saldo-detalj-lista" style="display:none; margin-bottom:8px;"></div>
     <div id="saldo-detalj-minimera-wrap" style="display:none; margin-bottom:8px; text-align:center;">
-      <button class="btn-lank" onclick="gaTillMinimera()">Reglera skuld →</button>
+      <button class="btn-lank" onclick="gaTillMinimera()">Gå till skuldreglering →</button>
     </div>
     <div class="modal-knappar">
       <button class="btn-avbryt" style="flex:none; width:100%;" onclick="stangModal('saldo-detalj-modal')">Stäng</button>

@@ -27,6 +27,13 @@ Frågor att analysera:
 
 ## Öppna frågor / noteringar
 
+- 2026-09-20: Gjorde en minimal fix i förväg — menyknappen hette "✓ Markera som
+  reglerat" vilket kändes slutgiltigt trots att den bara öppnar reglera-modalen
+  (den faktiska, irreversibla handlingen är knappen "Reglera" inuti modalen).
+  Bytt till "⚖️ Reglera skuld" för att matcha modal-titeln och signalera att
+  det öppnar en dialog, inte utför handlingen direkt. Löser inte den större
+  frågan om själva bekräftelse-knappens finalitet (ingen ångra) — det hör
+  fortfarande hemma i denna analys.
 - Gör ingen stor fix direkt utan att först testa tvåpersoners- och trepersonersrum.
 - Ta med både debitor-, kreditor- och blandad roll.
 - Uppdatera `docs/tests/smoke.md` när nytt önskat beteende är bestämt.

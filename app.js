@@ -972,32 +972,33 @@ async function raderaUtgift() {
   stangModal("edit-modal");
 }
 
-function uppdatera() {
+// Sammanfattningen som visas både på saldo-kortet och överst i saldo-detalj-modalen.
+function saldoSammanfattning() {
   const saldoMap = raknaUtSaldo(utgifter, personer);
   const saldoMig = saldoMap[migId] || 0;
   const totalt = utgifter.reduce((s, u) => s + u.belopp, 0);
+  const totaltTxt = totalt > 0 ? "Totalt " + totalt.toFixed(2).replace(".",",") + " EUR i utgifter" : "";
+
+  if (Math.abs(saldoMig) < 0.01) {
+    return { noll: true, label: "Du är KVITT", belopp: "", text: totaltTxt };
+  } else if (saldoMig > 0) {
+    return { noll: false, label: "Du skall få", belopp: Math.abs(saldoMig).toFixed(2).replace(".",",") + " EUR", text: totaltTxt };
+  } else {
+    return { noll: false, label: "Du är skyldig", belopp: Math.abs(saldoMig).toFixed(2).replace(".",",") + " EUR", text: totaltTxt };
+  }
+}
+
+function uppdatera() {
+  const s = saldoSammanfattning();
   const kortEl = document.getElementById("saldo-kort");
   const labelEl = document.getElementById("saldo-label");
   const belEl = document.getElementById("saldo-belopp");
   const txtEl = document.getElementById("saldo-text");
 
-  const totaltTxt = totalt > 0 ? "Totalt " + totalt.toFixed(2).replace(".",",") + " EUR i utgifter" : "";
-  if (Math.abs(saldoMig) < 0.01) {
-    kortEl.className = "saldo-kort noll";
-    labelEl.textContent = "Du är KVITT";
-    belEl.textContent = "";
-    txtEl.textContent = totaltTxt;
-  } else if (saldoMig > 0) {
-    kortEl.className = "saldo-kort";
-    labelEl.textContent = "Du skall få";
-    belEl.textContent = Math.abs(saldoMig).toFixed(2).replace(".",",") + " EUR";
-    txtEl.textContent = totaltTxt;
-  } else {
-    kortEl.className = "saldo-kort";
-    labelEl.textContent = "Du är skyldig";
-    belEl.textContent = Math.abs(saldoMig).toFixed(2).replace(".",",") + " EUR";
-    txtEl.textContent = totaltTxt;
-  }
+  kortEl.className = s.noll ? "saldo-kort noll" : "saldo-kort";
+  labelEl.textContent = s.label;
+  belEl.textContent = s.belopp;
+  txtEl.textContent = s.text;
 
   const lista = document.getElementById("historik-lista");
   if (utgifter.length === 0) {
@@ -1087,7 +1088,12 @@ function togglaHistorikDag(datum) {
 }
 
 function visaSaldoDetalj() {
-  const lista = document.getElementById("saldo-detalj-lista");
+  const s = saldoSammanfattning();
+  document.getElementById("saldo-detalj-sammanfattning").className =
+    s.noll ? "saldo-detalj-sammanfattning noll" : "saldo-detalj-sammanfattning";
+  document.getElementById("saldo-detalj-label").textContent = s.label;
+  document.getElementById("saldo-detalj-belopp").textContent = s.belopp;
+  document.getElementById("saldo-detalj-text").textContent = s.text;
 
   // Ditt saldo — par som involverar mig
   const mittSaldo = raknaParSaldon(utgifter, migId, personer);
@@ -1116,21 +1122,25 @@ function visaSaldoDetalj() {
     }
   }
 
-  let html = "";
-  if (mittHtml) {
-    const rubrik = personer.length > 2 ? '<div class="saldo-detalj-sektion-rubrik">Ditt saldo</div>' : "";
-    html += `<div class="saldo-detalj-sektion">${rubrik}${mittHtml}</div>`;
-  }
-  if (ovrigaRader.length > 0) {
-    html += `<div class="saldo-detalj-sektion"><div class="saldo-detalj-sektion-rubrik">Övriga</div>${ovrigaRader.join("")}</div>`;
-  }
-
-  lista.innerHTML = html;
+  const lista = document.getElementById("saldo-detalj-lista");
+  const toggleBtn = document.getElementById("saldo-detalj-toggle");
+  lista.innerHTML = mittHtml + ovrigaRader.join("");
+  lista.style.display = "none";
+  toggleBtn.style.display = lista.innerHTML ? "" : "none";
+  toggleBtn.textContent = "Detaljer…";
 
   const visaMinimera = personer.length > 2 && minimeradeOverforingar(utgifter, personer).length > 0;
   document.getElementById("saldo-detalj-minimera-wrap").style.display = visaMinimera ? "" : "none";
 
   document.getElementById("saldo-detalj-modal").classList.add("visa");
+}
+
+function vaxlaSaldoDetaljer() {
+  const lista = document.getElementById("saldo-detalj-lista");
+  const toggleBtn = document.getElementById("saldo-detalj-toggle");
+  const dold = lista.style.display === "none";
+  lista.style.display = dold ? "" : "none";
+  toggleBtn.textContent = dold ? "Dölj detaljer" : "Detaljer…";
 }
 
 function gaTillMinimera() {

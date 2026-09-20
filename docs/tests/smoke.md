@@ -52,13 +52,13 @@ Förutsätter att S1 är kört.
 
 ---
 
-## S4 · Markera som reglerat
+## S4 · Reglera skuld
 
 **Syfte:** Verifiera att "nollställning" fungerar utan att historiken raderas.
 
 Förutsätter att saldo inte är jämnt.
 
-1. Tryck "✓ Markera som reglerat"
+1. Tryck "⚖️ Reglera skuld"
 2. Bekräfta
 
 **Förväntat:** Saldo-kortet visar "Jämnt". Tidigare utgifter finns kvar i historiken.
