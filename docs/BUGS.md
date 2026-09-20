@@ -3,10 +3,26 @@
 Kända buggar som inte fixas direkt. Kritiska buggar som kräver utredning
 kan promotas till en feature-spec i `docs/features/`.
 
+Inga öppna just nu.
+
+---
+
+# Fixade
+
+Buggar som är lösta. Behålls för historiken.
+
 ---
 
 ## BUG-002: Saldo-kortet visar historiskt saldo efter att sessionen reglerats
 
+**Status:** ✅ Fixad (2026-09-20). `saldoSammanfattning()` i [app.js](../app.js)
+nedtonar nu saldo-kortet och saldo-detaljvyns sammanfattning till en ljus
+"historik"-stil (`.saldo-kort.historik` / `.saldo-detalj-sammanfattning.historik`)
+och lägger till "· Slutsaldo" i undertexten, för alla reglerade sessioner
+(både lokal `reglera()` och grupp-autoarkivering — samma kodväg via
+`aktivArReglerad()`). Beloppet och riktningen (skall få/är skyldig) behålls
+oförändrade eftersom det är historiskt korrekt information, bara framtoningen
+som en aktiv fordran/skuld tas bort.
 **Allvarlighet:** Medium
 **Område:** Reglering / saldo-vy
 
@@ -39,12 +55,6 @@ sammanfattning som tydligt beskriver slutsaldot som historisk information.
 
 **Uppdaterad:** 2026-07-17 efter genomgång av 017-flödet. Se även
 [033 – Reglera-flöde: analys och polering](features/033-reglera-flode-analys.md).
-
----
-
-# Fixade
-
-Buggar som är lösta. Behålls för historiken.
 
 ---
 

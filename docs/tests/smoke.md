@@ -54,11 +54,15 @@ Förutsätter att S1 är kört.
 
 ## S4 · Reglera skuld
 
-**Syfte:** Verifiera att "nollställning" fungerar utan att historiken raderas.
+**Syfte:** Verifiera att reglering gör sessionen read-only utan att historiken raderas.
 
 Förutsätter att saldo inte är jämnt.
 
 1. Tryck "⚖️ Reglera skuld"
 2. Bekräfta
 
-**Förväntat:** Saldo-kortet visar "Jämnt". Tidigare utgifter finns kvar i historiken.
+**Förväntat:** Bannern "Denna session är reglerad och visas som historik" syns.
+Saldo-kortet nedtonas (ljus "historik"-stil) och undertexten får tillägget
+"· Slutsaldo" — beloppet och riktningen (skall få/är skyldig) är oförändrat,
+det ska bara inte se ut som en aktiv skuld längre. Tidigare utgifter finns
+kvar i historiken.

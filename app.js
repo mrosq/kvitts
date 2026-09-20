@@ -973,18 +973,22 @@ async function raderaUtgift() {
 }
 
 // Sammanfattningen som visas både på saldo-kortet och överst i saldo-detalj-modalen.
+// BUG-002: i reglerat läge (lokal `reglera()` eller grupp-autoarkivering) ska
+// kortet inte se ut som en aktiv skuld/fordran, utan nedtonas till historik.
 function saldoSammanfattning() {
   const saldoMap = raknaUtSaldo(utgifter, personer);
   const saldoMig = saldoMap[migId] || 0;
   const totalt = utgifter.reduce((s, u) => s + u.belopp, 0);
-  const totaltTxt = totalt > 0 ? "Totalt " + totalt.toFixed(2).replace(".",",") + " EUR i utgifter" : "";
+  const historik = aktivArReglerad();
+  let totaltTxt = totalt > 0 ? "Totalt " + totalt.toFixed(2).replace(".",",") + " EUR i utgifter" : "";
+  if (historik) totaltTxt = totaltTxt ? totaltTxt + " · Slutsaldo" : "Slutsaldo";
 
   if (Math.abs(saldoMig) < 0.01) {
-    return { noll: true, label: "Du är KVITT", belopp: "", text: totaltTxt };
+    return { noll: true, historik, label: "Du är KVITT", belopp: "", text: totaltTxt };
   } else if (saldoMig > 0) {
-    return { noll: false, label: "Du skall få", belopp: Math.abs(saldoMig).toFixed(2).replace(".",",") + " EUR", text: totaltTxt };
+    return { noll: false, historik, label: "Du skall få", belopp: Math.abs(saldoMig).toFixed(2).replace(".",",") + " EUR", text: totaltTxt };
   } else {
-    return { noll: false, label: "Du är skyldig", belopp: Math.abs(saldoMig).toFixed(2).replace(".",",") + " EUR", text: totaltTxt };
+    return { noll: false, historik, label: "Du är skyldig", belopp: Math.abs(saldoMig).toFixed(2).replace(".",",") + " EUR", text: totaltTxt };
   }
 }
 
@@ -995,7 +999,7 @@ function uppdatera() {
   const belEl = document.getElementById("saldo-belopp");
   const txtEl = document.getElementById("saldo-text");
 
-  kortEl.className = s.noll ? "saldo-kort noll" : "saldo-kort";
+  kortEl.className = s.historik ? "saldo-kort historik" : (s.noll ? "saldo-kort noll" : "saldo-kort");
   labelEl.textContent = s.label;
   belEl.textContent = s.belopp;
   txtEl.textContent = s.text;
@@ -1090,7 +1094,7 @@ function togglaHistorikDag(datum) {
 function visaSaldoDetalj() {
   const s = saldoSammanfattning();
   document.getElementById("saldo-detalj-sammanfattning").className =
-    s.noll ? "saldo-detalj-sammanfattning noll" : "saldo-detalj-sammanfattning";
+    s.historik ? "saldo-detalj-sammanfattning historik" : (s.noll ? "saldo-detalj-sammanfattning noll" : "saldo-detalj-sammanfattning");
   document.getElementById("saldo-detalj-label").textContent = s.label;
   document.getElementById("saldo-detalj-belopp").textContent = s.belopp;
   document.getElementById("saldo-detalj-text").textContent = s.text;
